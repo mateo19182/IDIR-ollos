@@ -43,7 +43,7 @@ def compute_landmarks(network, landmarks_pre, image_size):
     return landmarks_pre + delta, delta
 
 
-def load_image_DIRLab(variation=1, folder=r"D:\Data\DIRLAB\Case"):
+def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
     # Size of data, per image pair
     image_sizes = [
         0,
@@ -81,15 +81,15 @@ def load_image_DIRLab(variation=1, folder=r"D:\Data\DIRLAB\Case"):
     # Images
     dtype = np.dtype(np.int16)
 
-    with open(folder + r"Images\case" + str(variation) + "_T00_s.img", "rb") as f:
+    with open(folder + r"Images/case" + str(variation) + "_T00_s.img", "rb") as f:
         data = np.fromfile(f, dtype)
     image_insp = data.reshape(shape)
 
-    with open(folder + r"Images\case" + str(variation) + "_T50_s.img", "rb") as f:
+    with open(folder + r"Images/case" + str(variation) + "_T50_s.img", "rb") as f:
         data = np.fromfile(f, dtype)
     image_exp = data.reshape(shape)
 
-    imgsitk_in = sitk.ReadImage(folder + r"Masks\case" + str(variation) + "_T00_s.mhd")
+    imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00_s.mhd")
 
     mask = np.clip(sitk.GetArrayFromImage(imgsitk_in), 0, 1)
 
@@ -98,17 +98,17 @@ def load_image_DIRLab(variation=1, folder=r"D:\Data\DIRLAB\Case"):
 
     # Landmarks
     with open(
-        folder + r"ExtremePhases\Case" + str(variation) + "_300_T00_xyz.txt"
+        folder + r"ExtremePhases/Case" + str(variation) + "_300_T00_xyz.txt"
     ) as f:
         landmarks_insp = np.array(
-            [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
+            [list(map(int, line[:-1].split("/t")[:3])) for line in f.readlines()]
         )
 
     with open(
-        folder + r"ExtremePhases\Case" + str(variation) + "_300_T50_xyz.txt"
+        folder + r"ExtremePhases/Case" + str(variation) + "_300_T50_xyz.txt"
     ) as f:
         landmarks_exp = np.array(
-            [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
+            [list(map(int, line[:-1].split("/t")[:3])) for line in f.readlines()]
         )
 
     landmarks_insp[:, [0, 2]] = landmarks_insp[:, [2, 0]]
