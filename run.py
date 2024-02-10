@@ -1,8 +1,8 @@
 from utils import general
 from models import models
 
-data_dir = "D:\Data\DIRLAB\DIRLAB_clean"
-out_dir = "D:\Data\DIRLAB\outtest"
+data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data"
+out_dir = "/home/mateo/uni/cuarto/TFG/IDIR/out"
 
 case_id = 8
 
@@ -13,7 +13,7 @@ case_id = 8
     landmarks_exp,
     mask_exp,
     voxel_size,
-) = general.load_image_DIRLab(case_id, "{}\Case".format(data_dir))
+) = general.load_image_DIRLab(case_id, "{}/Case".format(data_dir))
 
 kwargs = {}
 kwargs["verbose"] = False
