@@ -212,10 +212,10 @@ def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
 
 #----------------------------------------------------------------------
 
-def display_images(images, image_names):
+def display_images(images, image_names, cmap='color'):
     fig, axs = plt.subplots(2, 2, figsize=(15, 10))
     for i, ax in enumerate(axs.flatten()):
-        ax.imshow(images[i])
+        ax.imshow(images[i], cmap=cmap)
         ax.set_title(f'{image_names[i]} - Shape: {images[i].shape}')
     plt.tight_layout()
     plt.show()
@@ -230,7 +230,6 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
     coordinate_tensor = coordinate_tensor.cuda()
     return coordinate_tensor
-
 
 def make_coordinate_slice_2d(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
     """Make a coordinate tensor with a sliced dimension."""
@@ -249,6 +248,26 @@ def make_coordinate_slice_2d(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
         coordinate_tensor = coordinate_tensor.cuda()
 
     return coordinate_tensor
+
+def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
+    """Make a 2D coordinate grid."""
+    
+    # Create a meshgrid for the dimensions
+    x = torch.linspace(-1, 1, dims[1])
+    y = torch.linspace(-1, 1, dims[0])
+    xv, yv = torch.meshgrid(x, y)
+    
+    # Stack the coordinate grids
+    coordinate_grid = torch.stack([xv, yv], dim=-1) # Shape: [dims[0], dims[1], 2]
+    
+    # Flatten the grid to have a list of coordinates
+    coordinate_grid = coordinate_grid.view(-1, 2) # Shape: [dims[0]*dims[1], 2]
+    
+    # Move to GPU if requested
+    if gpu:
+        coordinate_grid = coordinate_grid.cuda()
+    
+    return coordinate_grid
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
@@ -274,8 +293,6 @@ def bilinear_interpolation(input_array, x_indices, y_indices):
         + input_array[x1, y1] * x * y
     )
     return output
-
-
 
 def load_image_RFMID(variation, folder):
 
@@ -308,8 +325,6 @@ def load_image_RFMID(variation, folder):
         mask,
         geo_mask,
     )
-
-
 
 def plot_loss_curves(data_loss_list, total_loss_list, epochs):
     """

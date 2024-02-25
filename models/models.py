@@ -418,15 +418,15 @@ class ImplicitRegistrator2d:
     """This is a class for registrating implicitly represented images."""
 
     def __call__(
-        self, coordinate_tensor=None, output_shape=(28, 28), dimension=0, slice_pos=0
+        self, coordinate_tensor=None, output_shape=(500, 500), dimension=0, slice_pos=0
     ):
         """Return the image-values for the given input-coordinates."""
-
         # Use standard coordinate tensor if none is given
         if coordinate_tensor is None:
-            coordinate_tensor = self.make_coordinate_slice(
-                output_shape, dimension, slice_pos
+            coordinate_tensor = general.make_coordinate_tensor_2d(
+                output_shape
             )
+        
 
         output = self.network(coordinate_tensor)
 
@@ -777,11 +777,10 @@ class ImplicitRegistrator2d:
 
         # From relative to absolute
         transformation = torch.add(transformation, coordinate_tensor)
-        return general.fast_trilinear_interpolation(
+        return general.bilinear_interpolation(
             moving_image,
             transformation[:, 0],
             transformation[:, 1],
-            transformation[:, 2],
         )
 
     def transform_no_add(self, transformation, moving_image=None, reshape=False):
