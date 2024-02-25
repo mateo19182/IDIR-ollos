@@ -20,13 +20,18 @@ for i in range(1):
 
     ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
     ImpReg.fit()
+    registered_img = ImpReg()
+    print(registered_img.shape)
+    images = [og_img, geo_img, registered_img, geo_mask] 
+    image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
+    general.display_images(images, image_names, 'gray')
     #print("{} {} {}".format(i,
     #  accuracy_mean, accuracy_std))
 
     print("--------------------")
 
 #----------------------------------------------------------------------
-'''
+
 data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data/IDIR"
 
 for i in range(6, 11): 
@@ -63,4 +68,3 @@ for i in range(6, 11):
     )
 
     print("{} {} {}".format(case_id, accuracy_mean, accuracy_std))
-'''
