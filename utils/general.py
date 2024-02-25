@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import numpy as np
 import os
 import torch
@@ -208,3 +209,132 @@ def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
     coordinate_tensor = coordinate_tensor.cuda()
 
     return coordinate_tensor
+
+#----------------------------------------------------------------------
+
+def display_images(images, image_names):
+    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
+    for i, ax in enumerate(axs.flatten()):
+        ax.imshow(images[i])
+        ax.set_title(f'{image_names[i]} - Shape: {images[i].shape}')
+    plt.tight_layout()
+    plt.show()
+
+def make_masked_coordinate_tensor_2d(mask, dims):
+    """Make a coordinate tensor."""
+
+    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
+    coordinate_tensor = coordinate_tensor.view([-1, 2])
+    coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
+    coordinate_tensor = coordinate_tensor.cuda()
+    return coordinate_tensor
+
+
+def make_coordinate_slice_2d(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
+    """Make a coordinate tensor with a sliced dimension."""
+
+    dims = list(dims)
+    dims.insert(dimension, 1)
+
+    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)] 
+    coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
+
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.stack(coordinate_tensor, dim=2) 
+    coordinate_tensor = coordinate_tensor.view([-1, 2]) 
+
+    if gpu:
+        coordinate_tensor = coordinate_tensor.cuda()
+
+    return coordinate_tensor
+
+def bilinear_interpolation(input_array, x_indices, y_indices):
+    x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
+    y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
+
+    x0 = torch.floor(x_indices.detach()).to(torch.long)
+    y0 = torch.floor(y_indices.detach()).to(torch.long)
+    x1 = x0 + 1
+    y1 = y0 + 1
+
+    x0 = torch.clamp(x0, 0, input_array.shape[0] - 1)
+    y0 = torch.clamp(y0, 0, input_array.shape[1] - 1)
+    x1 = torch.clamp(x1, 0, input_array.shape[0] - 1)
+    y1 = torch.clamp(y1, 0, input_array.shape[1] - 1)
+
+    x = x_indices - x0
+    y = y_indices - y0
+
+    output = (
+        input_array[x0, y0] * (1 - x) * (1 - y)
+        + input_array[x1, y0] * x * (1 - y)
+        + input_array[x0, y1] * (1 - x) * y
+        + input_array[x1, y1] * x * y
+    )
+    return output
+
+
+
+def load_image_RFMID(variation, folder):
+
+    data = np.load(folder)
+    og_img = data['og_img'] #imaxe orixinal
+    geo_img = data['geo_img'] #imaxe cunha transformación xeométrica aleatoria (dentro duns parámetros)
+    clr_img = data['clr_img'] #imaxe cunha transformación de cor aleatoria (dentro duns parámetros)
+    full_img = data['full_img'] #imaxe coas dúas transformacións aplicadas
+    mask = data['mask'] #máscara orixinal, aplicable á imaxe orixinal é a de cor
+    geo_mask = data['geo_mask'] #máscara coa transformación xeométrica, aplicable á geo e á full
+
+    matrix = data['matrix'] #matriz de transformación coa cal se conseguen a geo e a full
+    inv_matrix = data['inv_matrix'] #matriz inversa que permite pasar da geo/full á og/clr
+
+    images = [og_img, geo_img, clr_img, full_img] 
+    image_names = ['Original Image', 'Geometric Image', 'Color Image', 'Full Image']
+    #display_images(images, image_names)
+    grayscale_images = np.dot(images, [0.2989, 0.5870, 0.1140]) #convertir a grayscale
+
+    og_img = torch.tensor(grayscale_images[0], dtype=torch.float)
+    geo_img = torch.tensor(grayscale_images[1], dtype=torch.float)
+    clr_img = torch.tensor(grayscale_images[2], dtype=torch.float)
+    full_img = torch.tensor(grayscale_images[3], dtype=torch.float)
+    #print(og_img.shape) = torch.Size([1708, 1708])
+    return (
+        og_img,
+        geo_img,
+        clr_img,
+        full_img,
+        mask,
+        geo_mask,
+    )
+
+
+
+def plot_loss_curves(data_loss_list, total_loss_list, epochs):
+    """
+    Plots the data loss and total loss curves over epochs.
+
+    Parameters:
+    - data_loss_list: List or array containing data loss values per epoch.
+    - total_loss_list: List or array containing total loss values per epoch.
+    - epochs: Total number of epochs.
+    """
+    # Generate a range of epoch numbers (starting from 1)
+    epochs_range = range(1, epochs + 1)
+
+    plt.figure(figsize=(10, 6))
+
+    # Plot data loss
+    plt.plot(epochs_range, data_loss_list, label='Data Loss', marker='o', linestyle='-', color='blue')
+
+    # Plot total loss
+    plt.plot(epochs_range, total_loss_list, label='Total Loss', marker='x', linestyle='--', color='red')
+
+    plt.title('Loss Curves over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+
+    plt.show()
