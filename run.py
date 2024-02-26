@@ -5,16 +5,16 @@ out_dir = "/home/mateo/uni/cuarto/TFG/IDIR/out"
 
 #RFMID
 data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data/RFMID"
-
+saved_images = []
+saved_images_names = []
 for i in range(1): 
     (og_img, geo_img, clr_img, full_img, mask, geo_mask) = general.load_image_RFMID(1, "{}/Testing_1.npz".format(data_dir))
-
     kwargs = {}
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
-    kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["bending_regularization"] = False
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
 
@@ -24,14 +24,15 @@ for i in range(1):
     print(registered_img.shape)
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    general.display_images(images, image_names, 'gray')
-    #print("{} {} {}".format(i,
-    #  accuracy_mean, accuracy_std))
-
+    #general.display_images(images, image_names, 'gray')
+    #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
+    saved_images.append(registered_img)
+    saved_images_names.append("MLP no regularization")
     print("--------------------")
 
-#----------------------------------------------------------------------
+#general.display_images(saved_images, saved_images_names, 'gray')
 
+'''
 data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data/IDIR"
 
 for i in range(6, 11): 
@@ -55,7 +56,6 @@ for i in range(6, 11):
     kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(case_id)
     kwargs["mask"] = mask_exp
-    #print(img_insp.shape)=torch.Size([128, 512, 512])
     ImpReg = models.ImplicitRegistrator(img_exp, img_insp, **kwargs)
     ImpReg.fit()
     new_landmarks_orig, _ = general.compute_landmarks(
@@ -68,3 +68,4 @@ for i in range(6, 11):
     )
 
     print("{} {} {}".format(case_id, accuracy_mean, accuracy_std))
+'''

@@ -31,7 +31,6 @@ def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
 
     return means, stds
 
-
 def compute_landmarks(network, landmarks_pre, image_size):
     scale_of_axes = [(0.5 * s) for s in image_size]
 
@@ -42,7 +41,6 @@ def compute_landmarks(network, landmarks_pre, image_size):
     delta = output.cpu().detach().numpy() * (scale_of_axes)
 
     return landmarks_pre + delta, delta
-
 
 def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
     # Size of data, per image pair
@@ -126,7 +124,6 @@ def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
         voxel_sizes[variation],
     )
 
-
 def fast_trilinear_interpolation(input_array, x_indices, y_indices, z_indices):
     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
     y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
@@ -162,10 +159,8 @@ def fast_trilinear_interpolation(input_array, x_indices, y_indices, z_indices):
     )
     return output
 
-
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
 
 def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
     """Make a coordinate tensor."""
@@ -183,7 +178,6 @@ def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
 
     return coordinate_tensor
 
-
 def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
     """Make a coordinate tensor."""
 
@@ -195,7 +189,6 @@ def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
     coordinate_tensor = coordinate_tensor.cuda()
 
     return coordinate_tensor
-
 
 def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
     """Make a coordinate tensor."""
@@ -213,10 +206,20 @@ def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
 #----------------------------------------------------------------------
 
 def display_images(images, image_names, cmap='color'):
-    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-    for i, ax in enumerate(axs.flatten()):
-        ax.imshow(images[i], cmap=cmap)
-        ax.set_title(f'{image_names[i]} - Shape: {images[i].shape}')
+    n = len(images)
+    cols = 4
+    rows = np.ceil(n / cols).astype(int)
+
+    fig, axs = plt.subplots(rows, cols, figsize=(15, 10))
+    for ax, img, name in zip(axs.flatten(), images, image_names):
+        ax.imshow(img, cmap=cmap if cmap == 'gray' else None)
+        ax.set_title(f'{name} - Shape: {img.shape}')
+        ax.axis('off')  # Hide axes ticks
+
+    if n % cols != 0:
+        for ax in axs.flatten()[n:]:
+            fig.delaxes(ax)
+
     plt.tight_layout()
     plt.show()
 
@@ -335,17 +338,10 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs):
     - total_loss_list: List or array containing total loss values per epoch.
     - epochs: Total number of epochs.
     """
-    # Generate a range of epoch numbers (starting from 1)
     epochs_range = range(1, epochs + 1)
-
     plt.figure(figsize=(10, 6))
-
-    # Plot data loss
-    plt.plot(epochs_range, data_loss_list, label='Data Loss', marker='o', linestyle='-', color='blue')
-
-    # Plot total loss
-    plt.plot(epochs_range, total_loss_list, label='Total Loss', marker='x', linestyle='--', color='red')
-
+    plt.plot(epochs_range, data_loss_list, label='Data Loss',  linestyle='-', color='blue')
+    plt.plot(epochs_range, total_loss_list, label='Total Loss',  linestyle='--', color='red')
     plt.title('Loss Curves over Epochs')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')

@@ -738,11 +738,11 @@ class ImplicitRegistrator2d:
 
         # Regularization
         if self.jacobian_regularization:
-            loss += self.alpha_jacobian * regularizers.compute_jacobian_loss(
+            loss += self.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
                 coordinate_tensor, output_rel, batch_size=self.batch_size
             )
         if self.hyper_regularization:
-            loss += self.alpha_hyper * regularizers.compute_hyper_elastic_loss(
+            loss += self.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
                 coordinate_tensor, output_rel, batch_size=self.batch_size
             )
         if self.bending_regularization:
@@ -760,7 +760,6 @@ class ImplicitRegistrator2d:
         # Store the value of the total loss
         if self.verbose:
             self.loss_list[epoch] = loss.detach().cpu().numpy()
-
 
     def transform(
         self, transformation, coordinate_tensor=None, moving_image=None, reshape=False
@@ -815,4 +814,4 @@ class ImplicitRegistrator2d:
         for i in tqdm.tqdm(range(epochs)):
             self.training_iteration(i)
         
-        general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
+        #general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
