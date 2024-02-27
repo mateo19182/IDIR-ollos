@@ -1,3 +1,4 @@
+import imageio
 from matplotlib import pyplot as plt
 import numpy as np
 import os
@@ -297,10 +298,11 @@ def bilinear_interpolation(input_array, x_indices, y_indices):
     )
     return output
 
-def load_image_RFMID(variation, folder):
+def load_image_RFMID(folder):
 
     data = np.load(folder)
     og_img = data['og_img'] #imaxe orixinal
+    original = data['og_img'] #imaxe orixinal
     geo_img = data['geo_img'] #imaxe cunha transformación xeométrica aleatoria (dentro duns parámetros)
     clr_img = data['clr_img'] #imaxe cunha transformación de cor aleatoria (dentro duns parámetros)
     full_img = data['full_img'] #imaxe coas dúas transformacións aplicadas
@@ -327,6 +329,7 @@ def load_image_RFMID(variation, folder):
         full_img,
         mask,
         geo_mask,
+        original
     )
 
 def plot_loss_curves(data_loss_list, total_loss_list, epochs):
@@ -349,3 +352,30 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs):
     plt.grid(True)
 
     plt.show()
+
+
+def load_image_FIRE(index, folder):
+    images_folder = os.path.join(folder, 'Images')
+    files = os.listdir(images_folder)
+    files.sort()
+    fixed_image = imageio.imread(os.path.join(images_folder, files[index*2]))
+    moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
+    ground_folder = os.path.join(folder, 'Ground Truth')
+    files = os.listdir(ground_folder)
+    files.sort()
+    with open(os.path.join(ground_folder, files[index*2]), 'r') as f:
+        ground_fixed = f.read()
+    with open(os.path.join(ground_folder, files[(index*2) + 1]), 'r') as f:
+        ground_moving = f.read()    
+    images = [fixed_image, moving_image] 
+    image_names = ['fixed_image', 'moving_image']
+    display_images(images, image_names)
+    grayscale_images = np.dot(images, [0.2989, 0.5870, 0.1140])
+    fixed_image = torch.tensor(grayscale_images[0], dtype=torch.float)
+    moving_image = torch.tensor(grayscale_images[1], dtype=torch.float)
+    return (
+        fixed_image,
+        moving_image,
+        ground_fixed,
+        ground_moving,
+    )
