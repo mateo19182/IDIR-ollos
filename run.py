@@ -1,14 +1,47 @@
+import os
+import imageio.v2 as imageio
 from utils import general
 from models import models
 
-out_dir = "/home/mateo/uni/cuarto/TFG/IDIR/out"
+current_directory = os.getcwd()
+out_dir = os.path.join(current_directory, 'out')
+
+
+#FIRE
+data_dir = os.path.join(current_directory, 'data', 'FIRE')
+saved_images = []
+saved_images_names = []
+mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
+fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
+for i in range(2): 
+    (fixed_image, moving_image, ground_fixed, ground_moving) = general.load_image_FIRE(i, (data_dir))
+    kwargs = {}
+    kwargs["verbose"] = True
+    kwargs["hyper_regularization"] = True
+    kwargs["jacobian_regularization"] = True
+    kwargs["bending_regularization"] = False
+    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["save_folder"] = out_dir + str(i)
+    kwargs["mask"] = fixed_mask
+    ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
+    ImpReg.fit()
+    registered_img = ImpReg()
+    images = [fixed_image, moving_image, registered_img, moving_mask] 
+    image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
+    general.display_images(images, image_names, 'gray')
+    #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
+    #saved_images.append(registered_img)
+    #saved_images_names.append("MLP no regularization")
+
+'''
+#------------------------------------------------------------------------------------
 
 #RFMID
-data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data/RFMID"
+data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
 saved_images_names = []
 for i in range(1): 
-    (og_img, geo_img, clr_img, full_img, mask, geo_mask) = general.load_image_RFMID(1, "{}/Testing_1.npz".format(data_dir))
+    (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID("{}/Testing_{i}.npz".format(data_dir))
     kwargs = {}
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
@@ -21,19 +54,21 @@ for i in range(1):
     ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
     ImpReg.fit()
     registered_img = ImpReg()
-    print(registered_img.shape)
+    #print(registered_img.shape)
+    #resized_image=cv2.cvtColor(cv2.resize(original, (500, 500)), cv2.COLOR_BGR2GRAY)
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    #general.display_images(images, image_names, 'gray')
+    general.display_images(images, image_names, 'gray')
     #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
-    saved_images.append(registered_img)
-    saved_images_names.append("MLP no regularization")
-    print("--------------------")
+    #saved_images.append(registered_img)
+    #saved_images_names.append("MLP no regularization")
 
 #general.display_images(saved_images, saved_images_names, 'gray')
 
-'''
-data_dir = "/home/mateo/uni/cuarto/TFG/IDIR/data/IDIR"
+#------------------------------------------------------------------------------------
+
+#IDIR
+data_dir = os.path.join(current_directory, 'data', 'IDIR')
 
 for i in range(6, 11): 
     case_id = i
