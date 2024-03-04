@@ -364,18 +364,34 @@ def load_image_FIRE(index, folder):
     files = os.listdir(ground_folder)
     files.sort()
     with open(os.path.join(ground_folder, files[index*2]), 'r') as f:
-        ground_fixed = f.read()
-    with open(os.path.join(ground_folder, files[(index*2) + 1]), 'r') as f:
-        ground_moving = f.read()    
+        ground_truth = f.read()
     images = [fixed_image, moving_image] 
     image_names = ['fixed_image', 'moving_image']
-    display_images(images, image_names)
+    #display_images(images, image_names)
     grayscale_images = np.dot(images, [0.2989, 0.5870, 0.1140])
     fixed_image = torch.tensor(grayscale_images[0], dtype=torch.float)
     moving_image = torch.tensor(grayscale_images[1], dtype=torch.float)
     return (
         fixed_image,
         moving_image,
-        ground_fixed,
-        ground_moving,
+        ground_truth,
     )
+
+def test_accuracy(transformation, ground_truth):
+    scale = 500/2912
+    lines = ground_truth.strip().split('\n')
+    dists = []
+    error_threshold = 1
+    for line in lines:
+        points = line.split()
+        x= float(points[0])*scale
+        y=float(points[1])*scale
+        x_truth = float(points[2])*scale
+        y_truth = float(points[3])*scale
+        transformation=transformation.reshape((500, 500, 2))
+        x_t, y_t = transformation[int(x), int(y)]
+        x_res, y_res = (x_t*x) + x, (y_t*y) + y
+        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{}".format(x, y, x_truth, y_truth, x_res, y_res))
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
+        dists.append(dist)
+    print(dists)
