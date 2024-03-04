@@ -35,6 +35,7 @@ class ImplicitRegistrator:
             .detach()
             .numpy()
             .reshape(output_shape[0], output_shape[1])
+            #, coord_temp.cpu().detach().numpy()
         )
 
     def __init__(self, moving_image, fixed_image, **kwargs):
@@ -439,6 +440,7 @@ class ImplicitRegistrator2d:
             .detach()
             .numpy()
             .reshape(output_shape[0], output_shape[1])
+            , coord_temp.cpu().detach().numpy()
         )
 
     def __init__(self, moving_image, fixed_image, **kwargs):

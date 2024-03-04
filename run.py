@@ -13,23 +13,25 @@ saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(2): 
-    (fixed_image, moving_image, ground_fixed, ground_moving) = general.load_image_FIRE(i, (data_dir))
+for i in range(1): 
+    (fixed_image, moving_image, ground_truth) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["verbose"] = True
-    kwargs["hyper_regularization"] = True
-    kwargs["jacobian_regularization"] = True
-    kwargs["bending_regularization"] = False
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["hyper_regularization"] = False
+    kwargs["jacobian_regularization"] = False
+    kwargs["bending_regularization"] = True
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = fixed_mask
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
-    registered_img = ImpReg()
+    registered_img, transformation = ImpReg()
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
-    general.display_images(images, image_names, 'gray')
-    #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
+    #transformation es un DFV (deformation vector field), buscar la forma de visualizarlo
+    #probar imagenes solapadas de FIRE 
+    #general.display_images(images, image_names, 'gray')
+    #general.test_accuracy(transformation, ground_truth)
     #saved_images.append(registered_img)
     #saved_images_names.append("MLP no regularization")
 
