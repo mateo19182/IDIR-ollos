@@ -5,7 +5,6 @@ import os
 import torch
 import SimpleITK as sitk
 
-
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
     landmarks_pred = np.round(landmarks_pred)
     landmarks_gt = np.round(landmarks_gt)
@@ -375,6 +374,8 @@ def load_image_FIRE(index, folder):
         fixed_image,
         moving_image,
         ground_truth,
+        grayscale_images[0], 
+        grayscale_images[1]
     )
 
 def test_accuracy(transformation, ground_truth):
@@ -395,3 +396,34 @@ def test_accuracy(transformation, ground_truth):
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
     print(dists)
+
+def display_dfv(image, dfv,fixed_image, moving_image):
+    y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
+
+    u = dfv[:, 0].reshape(image.shape)
+    v = dfv[:, 1].reshape(image.shape)
+
+    M = np.hypot(u, v)
+    #
+    skip_factor = 5
+    skip = (slice(None, None, skip_factor), slice(None, None, skip_factor))
+
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5)) 
+
+    axs[0].imshow(fixed_image, cmap='gray')
+    axs[0].set_title('Fixed Image')
+    axs[0].axis('off') 
+
+    axs[1].imshow(moving_image, cmap='gray')
+    axs[1].set_title('Moving Image')
+    axs[1].axis('off') 
+    #color= 'red'
+    axs[2].imshow(image, cmap='gray', origin='lower')
+    quiver = axs[2].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
+    axs[2].set_xlim([-100, image.shape[1] + 100])
+    axs[2].set_ylim([-100, image.shape[0] + 100])
+    axs[2].set_title('Vector Field Visualization')
+
+    fig.colorbar(quiver, ax=axs[2], label='Magnitude')
+    plt.tight_layout()  # Adjust the layout to make room for the colorbar
+    plt.show()
