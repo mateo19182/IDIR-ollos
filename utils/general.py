@@ -400,6 +400,9 @@ def test_accuracy(transformation, ground_truth):
         dists.append(dist)
     print(dists)
 
+def block_average(arr, block_size):
+    shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
+    return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
 
 def display_dfv(image, dfv,fixed_image, moving_image):
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
@@ -407,11 +410,21 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     u = dfv[:, 0].reshape(image.shape)
     v = dfv[:, 1].reshape(image.shape)
 
+
+    
     M = np.hypot(u, v)
     angles = np.arctan2(v, u)
-    #
+
     skip_factor = 5
     skip = (slice(None, None, skip_factor), slice(None, None, skip_factor))
+
+    u_avg = block_average(u, skip_factor)
+    v_avg = block_average(v, skip_factor)
+    M_avg = np.hypot(u_avg, v_avg)
+    angles_avg = np.arctan2(v_avg, u_avg)
+
+    x_avg = block_average(x, skip_factor)
+    y_avg = block_average(y, skip_factor)
 
     fig, axs = plt.subplots(1, 4, figsize=(15, 5)) 
 
@@ -423,34 +436,55 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     axs[1].set_title('Moving Image')
     axs[1].axis('off') 
     #color= 'red'
-    axs[2].imshow(image, cmap='gray', origin='lower')
-    
-    axs[3].imshow(image, cmap='gray', origin='lower')
-    quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],angles[skip], cmap='hsv')
-    quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
+    axs[2].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
+    axs[2].set_title('Registered Image')
+    axs[2].axis('off') 
 
+    axs[3].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
+    quiver = axs[3].quiver(x_avg, y_avg, u_avg, -v_avg, angles_avg, cmap='hsv')
+    #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
+    #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
     axs[3].set_title('Vector Field Visualization')
+    axs[3].axis('off') 
+
 
     cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
     cbar.set_label('Direction')
+    cbar.set_ticks([-np.pi, 0, np.pi])
     plt.tight_layout()
     plt.show()
 
+    # 0 radians (0 degrees): Red (rightward)
+    # π/2 radians (90 degrees): Cyan or Green (upward)
+    # π radians (180 degrees): Blue (leftward)
+    # -π/2 radians (-90 degrees) or 3π/2 radians (270 degrees): Magenta or Yellow (downward)
+
+
 def display_grid(dfv, shape=[500, 500]):
-    grid = pystrum.pynd.ndutils.bw_grid(vol_shape=shape, spacing=2)
-    original_grid = np.copy(grid)
-    grid = torch.from_numpy(grid)
+    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=1))
+    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=8))
+    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
+
     dfv = torch.from_numpy(dfv)
 
-    tr = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
-    tr = tr.reshape(shape)
+    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
+    tr1 = tr1.reshape(shape)
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+    tr2 = bilinear_interpolation(grid_medium, dfv[:, 0], dfv[:, 1])
+    tr2 = tr2.reshape(shape)
 
-    axs[0].imshow(original_grid, cmap='gray')
-    axs[0].set_title('Original Grid')
+    tr3 = bilinear_interpolation(grid_big, dfv[:, 0], dfv[:, 1])
+    tr3 = tr3.reshape(shape)
 
-    axs[1].imshow(tr.numpy(), cmap='gray')
-    axs[1].set_title('Transformed Grid')
+    fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+
+    axs[0].imshow(tr1.numpy(), cmap='gray')
+    axs[0].set_title('Transformed Grid Small')
+
+    axs[1].imshow(tr2.numpy(), cmap='gray')
+    axs[1].set_title('Transformed Grid Medium')
+
+    axs[2].imshow(tr3.numpy(), cmap='gray')
+    axs[2].set_title('Transformed Grid Big')
 
     plt.show()

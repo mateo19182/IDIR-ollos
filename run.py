@@ -23,12 +23,12 @@ for i in range(30, 41):
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = fixed_mask
 
     #dfv = np.load('dfv.npy')
-
+    
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
     registered_img, dfv = ImpReg()
@@ -38,7 +38,6 @@ for i in range(30, 41):
 
     general.display_dfv(registered_img, dfv, fixed, moving)
     general.display_grid(dfv)
-
     #general.display_images(images, image_names, 'gray')
     #general.test_accuracy(transformation, ground_truth)
     #saved_images.append(registered_img)
