@@ -4,6 +4,9 @@ import numpy as np
 import os
 import torch
 import SimpleITK as sitk
+import pystrum
+from matplotlib.colors import Normalize
+
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
     landmarks_pred = np.round(landmarks_pred)
@@ -397,6 +400,7 @@ def test_accuracy(transformation, ground_truth):
         dists.append(dist)
     print(dists)
 
+
 def display_dfv(image, dfv,fixed_image, moving_image):
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 
@@ -404,11 +408,12 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     v = dfv[:, 1].reshape(image.shape)
 
     M = np.hypot(u, v)
+    angles = np.arctan2(v, u)
     #
     skip_factor = 5
     skip = (slice(None, None, skip_factor), slice(None, None, skip_factor))
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 5)) 
+    fig, axs = plt.subplots(1, 4, figsize=(15, 5)) 
 
     axs[0].imshow(fixed_image, cmap='gray')
     axs[0].set_title('Fixed Image')
@@ -419,11 +424,33 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     axs[1].axis('off') 
     #color= 'red'
     axs[2].imshow(image, cmap='gray', origin='lower')
-    quiver = axs[2].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
-    axs[2].set_xlim([-100, image.shape[1] + 100])
-    axs[2].set_ylim([-100, image.shape[0] + 100])
-    axs[2].set_title('Vector Field Visualization')
+    
+    axs[3].imshow(image, cmap='gray', origin='lower')
+    quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],angles[skip], cmap='hsv')
+    quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
 
-    fig.colorbar(quiver, ax=axs[2], label='Magnitude')
-    plt.tight_layout()  # Adjust the layout to make room for the colorbar
+    axs[3].set_title('Vector Field Visualization')
+
+    cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
+    cbar.set_label('Direction')
+    plt.tight_layout()
+    plt.show()
+
+def display_grid(dfv, shape=[500, 500]):
+    grid = pystrum.pynd.ndutils.bw_grid(vol_shape=shape, spacing=2)
+    original_grid = np.copy(grid)
+    grid = torch.from_numpy(grid)
+    dfv = torch.from_numpy(dfv)
+
+    tr = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
+    tr = tr.reshape(shape)
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+    axs[0].imshow(original_grid, cmap='gray')
+    axs[0].set_title('Original Grid')
+
+    axs[1].imshow(tr.numpy(), cmap='gray')
+    axs[1].set_title('Transformed Grid')
+
     plt.show()
