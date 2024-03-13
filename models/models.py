@@ -86,8 +86,8 @@ class ImplicitRegistrator:
         )
 
         # Make folder for output
-        if not self.save_folder == "" and not os.path.isdir(self.save_folder):
-            os.mkdir(self.save_folder)
+        # if not self.save_folder == "" and not os.path.isdir(self.save_folder):
+        #     os.mkdir(self.save_folder)
 
         # Add slash to divide folder and filename
         self.save_folder += "/"
@@ -492,8 +492,8 @@ class ImplicitRegistrator2d:
         )
 
         # Make folder for output
-        if not self.save_folder == "" and not os.path.isdir(self.save_folder):
-            os.mkdir(self.save_folder)
+        # if not self.save_folder == "" and not os.path.isdir(self.save_folder):
+        #     os.mkdir(self.save_folder)
 
         # Add slash to divide folder and filename
         self.save_folder += "/"
