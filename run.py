@@ -50,14 +50,14 @@ for i in range(8, 41):
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
 saved_images_names = []
-for i in range(23, 41): 
+for i in range(8, 41): 
     (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "Siren"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
 

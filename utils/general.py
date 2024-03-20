@@ -465,7 +465,7 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     # 0 radians (0 degrees): Red (rightward)
     # π/2 radians (90 degrees): Cyan or Green (upward)
     # π radians (180 degrees): Blue (leftward)
-    # -π/2 radians (-90 degrees) or 3π/2 radians (270 degrees):     Magenta or Yellow (downward)
+    # 3π/2 radians (270 degrees): Magenta or Yellow (downward)
 
 
 def display_grid(dfv, shape=[500, 500]):
