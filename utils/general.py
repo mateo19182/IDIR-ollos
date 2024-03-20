@@ -428,20 +428,26 @@ def display_dfv(image, dfv,fixed_image, moving_image):
 
     fig, axs = plt.subplots(1, 4, figsize=(15, 5)) 
 
-    axs[0].imshow(fixed_image, cmap='gray')
+    axs[0].imshow(np.flip(fixed_image, axis=0), cmap='gray')
     axs[0].set_title('Fixed Image')
     axs[0].axis('off') 
 
-    axs[1].imshow(moving_image, cmap='gray')
+    axs[1].imshow(np.flip(moving_image, axis=0), cmap='gray')
     axs[1].set_title('Moving Image')
     axs[1].axis('off') 
     #color= 'red'
-    axs[2].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
-    axs[2].set_title('Registered Image')
+
+    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
+    dfv = torch.from_numpy(dfv)
+    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
+    tr1 = tr1.reshape([500, 500])
+
+    axs[2].imshow(tr1.numpy(), cmap='gray', origin='lower')
+    axs[2].set_title('grid deformation')
     axs[2].axis('off') 
 
-    axs[3].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
-    quiver = axs[3].quiver(x_avg, y_avg, u_avg, -v_avg, angles_avg, cmap='hsv')
+    axs[3].imshow(image, cmap='gray', origin='lower')
+    quiver = axs[3].quiver(x_avg, y_avg, u_avg, v_avg, angles_avg, cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
     axs[3].set_title('Vector Field Visualization')
@@ -451,19 +457,21 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
     cbar.set_label('Direction')
     cbar.set_ticks([-np.pi, 0, np.pi])
+    #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
+
     plt.tight_layout()
     plt.show()
 
     # 0 radians (0 degrees): Red (rightward)
     # π/2 radians (90 degrees): Cyan or Green (upward)
     # π radians (180 degrees): Blue (leftward)
-    # -π/2 radians (-90 degrees) or 3π/2 radians (270 degrees): Magenta or Yellow (downward)
+    # -π/2 radians (-90 degrees) or 3π/2 radians (270 degrees):     Magenta or Yellow (downward)
 
 
 def display_grid(dfv, shape=[500, 500]):
-    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=1))
-    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=8))
-    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
+    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=8))
+    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
+    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=32))
 
     dfv = torch.from_numpy(dfv)
 

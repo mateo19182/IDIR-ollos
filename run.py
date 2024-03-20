@@ -9,26 +9,26 @@ import numpy as np
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out')
 
-
+'''
 #FIRE
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(30, 41): 
+for i in range(8, 41): 
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = fixed_mask
 
     #dfv = np.load('dfv.npy')
-    
+
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
     registered_img, dfv = ImpReg()
@@ -37,38 +37,44 @@ for i in range(30, 41):
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
 
     general.display_dfv(registered_img, dfv, fixed, moving)
-    general.display_grid(dfv)
+    #general.display_grid(dfv)
     #general.display_images(images, image_names, 'gray')
     #general.test_accuracy(transformation, ground_truth)
     #saved_images.append(registered_img)
     #saved_images_names.append("MLP no regularization")
-
 '''
+
 #------------------------------------------------------------------------------------
 
 #RFMID
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
 saved_images_names = []
-for i in range(1): 
-    (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID("{}/Testing_{i}.npz".format(data_dir))
+for i in range(23, 41): 
+    (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
-    kwargs["bending_regularization"] = False
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["bending_regularization"] = True
+    kwargs["network_type"] = "Siren"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
 
     ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
     ImpReg.fit()
+
+    registered_img, dfv = ImpReg()
+
+    images = [og_img, geo_img, registered_img, geo_mask] 
+    image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
+    general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy())
     registered_img = ImpReg()
     #print(registered_img.shape)
     #resized_image=cv2.cvtColor(cv2.resize(original, (500, 500)), cv2.COLOR_BGR2GRAY)
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    general.display_images(images, image_names, 'gray')
+    #general.display_images(images, image_names, 'gray')
     #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
     #saved_images.append(registered_img)
     #saved_images_names.append("MLP no regularization")
@@ -76,7 +82,7 @@ for i in range(1):
 #general.display_images(saved_images, saved_images_names, 'gray')
 
 #------------------------------------------------------------------------------------
-
+'''
 #IDIR
 data_dir = os.path.join(current_directory, 'data', 'IDIR')
 
