@@ -1,3 +1,9 @@
+# To Do
+- make it work with color
+- make it work better with FIRE, not just RFMID
+
+
+
 # IDIR
 Code for the MIDL 2022 paper [Implicit Neural Representations for Deformable Image Registration](https://openreview.net/forum?id=BP29eKzQBu3). In this work, we register medical images using differentiable deformation vector fields represented in multilayer perceptrons. We show how this allows us to include various regularization terms computed using analytical gradients in PyTorch.
 
