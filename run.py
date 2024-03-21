@@ -50,14 +50,15 @@ for i in range(8, 41):
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
 saved_images_names = []
-for i in range(8, 41): 
+for i in range(12, 41): 
     (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
+    kwargs["loss_function"] = "ssim" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["verbose"] = True
-    kwargs["hyper_regularization"] = False
-    kwargs["jacobian_regularization"] = False
+    kwargs["hyper_regularization"] = True
+    kwargs["jacobian_regularization"] = True
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "Siren"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
 

@@ -7,6 +7,7 @@ import tqdm
 from utils import general
 from networks import networks
 from objectives import ncc
+from objectives import ssim
 from objectives import regularizers
 
 
@@ -567,6 +568,9 @@ class ImplicitRegistrator2d:
 
         elif self.loss_function_arg.lower() == "huber":
             self.criterion = nn.HuberLoss()
+        elif self.loss_function_arg.lower() == "ssim":
+            self.criterion = ssim.SSIM_()
+            
 
         else:
             self.criterion = nn.MSELoss()
@@ -728,7 +732,7 @@ class ImplicitRegistrator2d:
             coordinate_tensor[:, 0],
             coordinate_tensor[:, 1],
         )
-
+        
         # Compute the loss
         loss += self.criterion(transformed_image, fixed_image)
 
@@ -817,4 +821,4 @@ class ImplicitRegistrator2d:
         for i in tqdm.tqdm(range(epochs)):
             self.training_iteration(i)
         
-        #general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
+        general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
