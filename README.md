@@ -3,6 +3,8 @@
 - make it work better with FIRE, not just RFMID
 - variable epochs, not fixed to 2500
 - mssim
+- data loss is before regularizers, total loss is after
+- si lo que interesa son estructuras ssim, normalizar intensidad?
 
 
 

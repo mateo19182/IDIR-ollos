@@ -312,10 +312,9 @@ class ImplicitRegistrator:
         )[: self.batch_size]
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
-        #print(coordinate_tensor.shape) torch.Size([10000, 3])
+
         output = self.network(coordinate_tensor)
         coord_temp = torch.add(output, coordinate_tensor)
-
         output = coord_temp
 
         transformed_image = self.transform_no_add(coord_temp)
@@ -669,7 +668,7 @@ class ImplicitRegistrator2d:
         self.args["method"] = 1
 
         self.args["lr"] = 0.00001
-        self.args["batch_size"] = 10000
+        self.args["batch_size"] = 10000 #tensor size   
         self.args["layers"] = [2, 256, 256, 256, 2]
         self.args["velocity_steps"] = 1
 
@@ -727,6 +726,7 @@ class ImplicitRegistrator2d:
         output = coord_temp
 
         transformed_image = self.transform_no_add(coord_temp)
+        
         fixed_image = general.bilinear_interpolation(
             self.fixed_image,
             coordinate_tensor[:, 0],
@@ -816,7 +816,6 @@ class ImplicitRegistrator2d:
         if not len(self.loss_list) == epochs:
             self.loss_list = [0 for _ in range(epochs)]
             self.data_loss_list = [0 for _ in range(epochs)]
-
         # Perform training iterations
         for i in tqdm.tqdm(range(epochs)):
             self.training_iteration(i)
