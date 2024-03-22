@@ -212,7 +212,7 @@ def display_images(images, image_names, cmap='color'):
     n = len(images)
     cols = 4
     rows = np.ceil(n / cols).astype(int)
-
+    print(images)
     fig, axs = plt.subplots(rows, cols, figsize=(15, 10))
     for ax, img, name in zip(axs.flatten(), images, image_names):
         ax.imshow(img, cmap=cmap if cmap == 'gray' else None)
@@ -237,23 +237,6 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     coordinate_tensor = coordinate_tensor.cuda()
     return coordinate_tensor
 
-def make_coordinate_slice_2d(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
-    """Make a coordinate tensor with a sliced dimension."""
-
-    dims = list(dims)
-    dims.insert(dimension, 1)
-
-    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)] 
-    coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
-
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
-    coordinate_tensor = torch.stack(coordinate_tensor, dim=2) 
-    coordinate_tensor = coordinate_tensor.view([-1, 2]) 
-
-    if gpu:
-        coordinate_tensor = coordinate_tensor.cuda()
-
-    return coordinate_tensor
 
 def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     """Make a 2D coordinate grid."""
@@ -272,7 +255,6 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     # Move to GPU if requested
     if gpu:
         coordinate_grid = coordinate_grid.cuda()
-    
     return coordinate_grid
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
@@ -335,14 +317,6 @@ def load_image_RFMID(folder):
     )
 
 def plot_loss_curves(data_loss_list, total_loss_list, epochs):
-    """
-    Plots the data loss and total loss curves over epochs.
-
-    Parameters:
-    - data_loss_list: List or array containing data loss values per epoch.
-    - total_loss_list: List or array containing total loss values per epoch.
-    - epochs: Total number of epochs.
-    """
     epochs_range = range(1, epochs + 1)
     plt.figure(figsize=(10, 6))
     plt.plot(epochs_range, data_loss_list, label='Data Loss',  linestyle='-', color='blue')

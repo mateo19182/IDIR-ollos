@@ -40,6 +40,7 @@ class NCC(_Loss):
         stablestd = StableStd.apply
         std = stablestd(x1) * stablestd(x2)
         ncc = cc / (std + e)
+        #print(x1.shape, x2.shape)
         return ncc
 
     def metric(self, fixed: Tensor, warped: Tensor) -> Tensor:
