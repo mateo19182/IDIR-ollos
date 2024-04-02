@@ -1,5 +1,5 @@
 # To Do
-- make it work with color
+- make it work with color (only green channel)
 - make it work better with FIRE, not just RFMID
 - variable epochs, not fixed to 2500
 - mssim

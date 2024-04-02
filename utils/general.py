@@ -345,8 +345,9 @@ def load_image_FIRE(index, folder):
     image_names = ['fixed_image', 'moving_image']
     #display_images(images, image_names)
     grayscale_images = np.dot(images, [0.2989, 0.5870, 0.1140])
-    fixed_image = torch.tensor(grayscale_images[0], dtype=torch.float)
-    moving_image = torch.tensor(grayscale_images[1], dtype=torch.float)
+    green_channel_images = [img[:, :, 1] for img in images]
+    fixed_image = torch.tensor(green_channel_images[0], dtype=torch.float)
+    moving_image = torch.tensor(green_channel_images[1], dtype=torch.float)
     return (
         fixed_image,
         moving_image,
