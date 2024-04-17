@@ -385,12 +385,10 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     u = dfv[:, 0].reshape(image.shape)
     v = dfv[:, 1].reshape(image.shape)
 
-
-    
     M = np.hypot(u, v)
     angles = np.arctan2(v, u)
 
-    skip_factor = 5
+    skip_factor = 20
     skip = (slice(None, None, skip_factor), slice(None, None, skip_factor))
 
     u_avg = block_average(u, skip_factor)
@@ -412,9 +410,10 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     axs[1].axis('off') 
     #color= 'red'
 
-    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
+    grid_small =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16, thickness=1))
     dfv = torch.from_numpy(dfv)
     tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
+    #print(tr1.shape) torch.Size([250000])
     tr1 = tr1.reshape([500, 500])
 
     axs[2].imshow(tr1.numpy(), cmap='gray', origin='lower')
@@ -444,11 +443,19 @@ def display_dfv(image, dfv,fixed_image, moving_image):
 
 
 def display_grid(dfv, shape=[500, 500]):
-    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=8))
-    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16))
-    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=32))
+    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=64, thickness=3))
+    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=128, thickness=3))
+    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=256, thickness=3))
 
     dfv = torch.from_numpy(dfv)
+    
+    # Define padding
+    # padding = ((100, 100), (100, 100))  # padding for top, bottom, left, right
+
+    # # Add padding to the grids
+    # grid_small = np.pad(grid_small, padding, mode='constant', constant_values=0)
+    # grid_medium = np.pad(grid_medium, padding, mode='constant', constant_values=0)
+    # grid_big = np.pad(grid_big, padding, mode='constant', constant_values=0)
 
     tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
     tr1 = tr1.reshape(shape)
@@ -458,6 +465,7 @@ def display_grid(dfv, shape=[500, 500]):
 
     tr3 = bilinear_interpolation(grid_big, dfv[:, 0], dfv[:, 1])
     tr3 = tr3.reshape(shape)
+
 
     fig, axs = plt.subplots(1, 3, figsize=(18, 6))
 
@@ -469,5 +477,15 @@ def display_grid(dfv, shape=[500, 500]):
 
     axs[2].imshow(tr3.numpy(), cmap='gray')
     axs[2].set_title('Transformed Grid Big')
+
+
+    # axs[0].imshow(grid_small, cmap='gray')
+    # axs[0].set_title('Transformed Grid Small')
+
+    # axs[1].imshow(grid_medium, cmap='gray')
+    # axs[1].set_title('Transformed Grid Medium')
+
+    # axs[2].imshow(grid_big, cmap='gray')
+    # axs[2].set_title('Transformed Grid Big')
 
     plt.show()

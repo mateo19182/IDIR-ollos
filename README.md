@@ -1,11 +1,15 @@
 # To Do
-- make it work with color (only green channel)
-- make it work better with FIRE, not just RFMID
-- variable epochs, not fixed to 2500
-- mssim
-- data loss is before regularizers, total loss is after
-- si lo que interesa son estructuras ssim, normalizar intensidad?
+centrarse en par de imagees, naturales y simulada
+	RFMID: 102, 103
+	FIRE:
 
+epochs y learning rate
+
+regularizacion con learning rate
+
+visualizacion del grid, garantizar que sea igual.
+
+stride usado en el estimador de la drivada. si infuye minibatch es uyn parametro relevante.¡ bending...
 
 
 # IDIR
