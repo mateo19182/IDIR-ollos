@@ -640,7 +640,7 @@ class ImplicitRegistrator2d:
         self.possible_coordinate_tensor = general.make_masked_coordinate_tensor_2d(
             self.mask, self.fixed_image.shape
         )
-        #print(self.possible_coordinate_tensor.shape)torch.Size([1504349, 2])
+        #print(self.possible_coordinate_tensor.shape) #torch.Size([2912, 2912])
         if self.gpu:
             self.moving_image = self.moving_image.cuda()
             self.fixed_image = self.fixed_image.cuda()
@@ -671,6 +671,9 @@ class ImplicitRegistrator2d:
         self.args["batch_size"] = 10000 #tensor size   
         self.args["layers"] = [2, 256, 256, 256, 2]
         self.args["velocity_steps"] = 1
+
+        #regularizacion ramalño vcambia segun tamaño de batch
+        
 
         # Define argument defaults specific to this class
         self.args["output_regularization"] = False
@@ -720,13 +723,11 @@ class ImplicitRegistrator2d:
         )[: self.batch_size]
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
-        #print(coordinate_tensor.shape) torch.Size([10000, 2])
         output = self.network(coordinate_tensor)
         coord_temp = torch.add(output, coordinate_tensor)
         output = coord_temp
 
         transformed_image = self.transform_no_add(coord_temp)
-        
         fixed_image = general.bilinear_interpolation(
             self.fixed_image,
             coordinate_tensor[:, 0],
