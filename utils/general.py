@@ -404,22 +404,21 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     x_avg = block_average(x, skip_factor)
     y_avg = block_average(y, skip_factor)
 
-    fig, axs = plt.subplots(1, 5, figsize=(20, 5)) 
+    fig, axs = plt.subplots(1, 4, figsize=(20, 5)) 
 
-    axs[0].imshow(np.flip(fixed_image, axis=0), cmap='gray')
+    axs[0].imshow(fixed_image, cmap='gray')
     axs[0].set_title('Fixed Image')
     axs[0].axis('off') 
 
-    axs[1].imshow(np.flip(moving_image, axis=0), cmap='gray')
+    axs[1].imshow(moving_image, cmap='gray')
     axs[1].set_title('Moving Image')
     axs[1].axis('off') 
     #color= 'red'
 
-    grid_small =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(1000, 1000), spacing=64, thickness=2))
-    print(grid_small.shape)
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(1000, 1000), spacing=32, thickness=1))
     dfv = torch.from_numpy(dfv)
 
-    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
+    tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
 
     tr1 = tr1.reshape([1000, 1000]).numpy()
 
@@ -438,94 +437,13 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     cbar.set_ticks([-np.pi, 0, np.pi])
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
-    axs[4].imshow(grid_small, cmap='gray', origin='lower')
-    axs[4].set_title('hmmm')
-
     plt.tight_layout()
     plt.show()
+    #ne.plot.flow([dfv.reshape([1000, 1000, 2])], width=2, scale=0.1, titles=['Deformation Field'])
+
 
     # 0 radians (0 degrees): Red (rightward)
     # π/2 radians (90 degrees): Cyan or Green (upward)
     # π radians (180 degrees): Blue (leftward)
     # 3π/2 radians (270 degrees): Magenta or Yellow (downward)
 
-
-def display_grid(dfv, shape=[500, 500]):
-    grid_small = torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=64, thickness=3))
-    grid_medium =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=128, thickness=3))
-    grid_big =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=256, thickness=3))
-
-    dfv = torch.from_numpy(dfv)
-    
-    # Define padding
-    # padding = ((100, 100), (100, 100))  # padding for top, bottom, left, right
-
-    # # Add padding to the grids
-    # grid_small = np.pad(grid_small, padding, mode='constant', constant_values=0)
-    # grid_medium = np.pad(grid_medium, padding, mode='constant', constant_values=0)
-    # grid_big = np.pad(grid_big, padding, mode='constant', constant_values=0)
-
-    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
-    tr1 = tr1.reshape(shape)
-
-    tr2 = bilinear_interpolation(grid_medium, dfv[:, 0], dfv[:, 1])
-    tr2 = tr2.reshape(shape)
-
-    tr3 = bilinear_interpolation(grid_big, dfv[:, 0], dfv[:, 1])
-    tr3 = tr3.reshape(shape)
-
-
-    fig, axs = plt.subplots(1, 3, figsize=(18, 6))
-
-    axs[0].imshow(tr1.numpy(), cmap='gray')
-    axs[0].set_title('Transformed Grid Small')
-
-    axs[1].imshow(tr2.numpy(), cmap='gray')
-    axs[1].set_title('Transformed Grid Medium')
-
-    axs[2].imshow(tr3.numpy(), cmap='gray')
-    axs[2].set_title('Transformed Grid Big')
-
-
-    # axs[0].imshow(grid_small, cmap='gray')
-    # axs[0].set_title('Transformed Grid Small')
-
-    # axs[1].imshow(grid_medium, cmap='gray')
-    # axs[1].set_title('Transformed Grid Medium')
-
-    # axs[2].imshow(grid_big, cmap='gray')
-    # axs[2].set_title('Transformed Grid Big')
-
-    plt.show()
-
-def display_vxm(dfv,fixed_image, moving_image):
-    volshape = [500, 500]
-    grid = pystrum.pynd.ndutils.bw_grid(vol_shape=volshape, spacing=10)
-
-    fig, axs = plt.subplots(1, 4, figsize=(20, 5)) 
-
-    axs[0].imshow(np.flip(fixed_image, axis=0), cmap='gray')
-    axs[0].set_title('Fixed Image')
-    axs[0].axis('off') 
-
-    axs[1].imshow(np.flip(moving_image, axis=0), cmap='gray')
-    axs[1].set_title('Moving Image')
-    axs[1].axis('off') 
-
-    trf = vxm.networks.Transform(volshape)
-    dfv2 = dfv.reshape([500, 500, 2])
-    warped_grid = trf([grid[None, ..., None], dfv2[None, ...]])
-
-    #ne.plot.flow([dfv2], scale=1/5, width=1)
-
-    dfv = torch.from_numpy(dfv)
-    tr1 = bilinear_interpolation(torch.from_numpy(grid), dfv[:, 0], dfv[:, 1])
-    tr1 = tr1.reshape(volshape).numpy()
-
-    axs[2].imshow(tr1, cmap='gray')
-    axs[2].set_title('grid deformation')
-    
-    axs[3].imshow(warped_grid[0, ..., 0], cmap='gray')
-    axs[3].set_title('image deformation')
-    
-    plt.show()

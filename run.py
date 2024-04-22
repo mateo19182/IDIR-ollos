@@ -9,7 +9,7 @@ import numpy as np
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out')
 
-'''
+
 #FIRE
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
@@ -38,13 +38,7 @@ for i in range(18, 20):
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
 
     general.display_dfv(registered_img, dfv, fixed, moving)
-    #general.display_grid(dfv)
-    #general.display_images(images, image_names, 'gray')
-    #general.test_accuracy(transformation, ground_truth)
-    #saved_images.append(registered_img)
-    #saved_images_names.append("MLP no regularization")
 
-'''
 #------------------------------------------------------------------------------------
 
 
@@ -60,15 +54,9 @@ for i in range(558, 560):
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
-
-    dfv = np.load('dfv.npy')
-    dfv=dfv
-    general.display_vxm(dfv, og_img.numpy(), geo_img.numpy())
-
-
 
     ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
     ImpReg.fit()
@@ -78,15 +66,6 @@ for i in range(558, 560):
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
     general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy())
-    registered_img = ImpReg()
-    #print(registered_img.shape)
-    #resized_image=cv2.cvtColor(cv2.resize(original, (500, 500)), cv2.COLOR_BGR2GRAY)
-    images = [og_img, geo_img, registered_img, geo_mask] 
-    image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    #general.display_images(images, image_names, 'gray')
-    #print("{} {} {}".format(i, accuracy_mean, accuracy_std))
-    #saved_images.append(registered_img)
-    #saved_images_names.append("MLP no regularization")
 
 #general.display_images(saved_images, saved_images_names, 'gray')
 
