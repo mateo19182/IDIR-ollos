@@ -419,7 +419,7 @@ class ImplicitRegistrator2d:
     """This is a class for registrating implicitly represented images."""
 
     def __call__(
-        self, coordinate_tensor=None, output_shape=(500, 500), dimension=0, slice_pos=0
+        self, coordinate_tensor=None, output_shape=(1000, 1000), dimension=0, slice_pos=0
     ):
         """Return the image-values for the given input-coordinates."""
         # Use standard coordinate tensor if none is given

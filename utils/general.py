@@ -5,7 +5,9 @@ import os
 import torch
 import SimpleITK as sitk
 import pystrum
+import voxelmorph as vxm
 from matplotlib.colors import Normalize
+import neurite as ne
 
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
@@ -258,6 +260,8 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     return coordinate_grid
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
+
+    #scale indices to image size
     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
     y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
 
@@ -380,6 +384,7 @@ def block_average(arr, block_size):
     return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
 
 def display_dfv(image, dfv,fixed_image, moving_image):
+
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 
     u = dfv[:, 0].reshape(image.shape)
@@ -399,7 +404,7 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     x_avg = block_average(x, skip_factor)
     y_avg = block_average(y, skip_factor)
 
-    fig, axs = plt.subplots(1, 4, figsize=(15, 5)) 
+    fig, axs = plt.subplots(1, 5, figsize=(20, 5)) 
 
     axs[0].imshow(np.flip(fixed_image, axis=0), cmap='gray')
     axs[0].set_title('Fixed Image')
@@ -410,28 +415,31 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     axs[1].axis('off') 
     #color= 'red'
 
-    grid_small =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(2912, 2912), spacing=16, thickness=1))
+    grid_small =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(1000, 1000), spacing=64, thickness=2))
+    print(grid_small.shape)
     dfv = torch.from_numpy(dfv)
-    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
-    #print(tr1.shape) torch.Size([250000])
-    tr1 = tr1.reshape([500, 500])
 
-    axs[2].imshow(tr1.numpy(), cmap='gray', origin='lower')
+    tr1 = bilinear_interpolation(grid_small, dfv[:, 0], dfv[:, 1])
+
+    tr1 = tr1.reshape([1000, 1000]).numpy()
+
+    axs[2].imshow(tr1, cmap='gray', origin='lower')
     axs[2].set_title('grid deformation')
-    axs[2].axis('off') 
 
     axs[3].imshow(image, cmap='gray', origin='lower')
     quiver = axs[3].quiver(x_avg, y_avg, u_avg, v_avg, angles_avg, cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
     axs[3].set_title('Vector Field Visualization')
-    axs[3].axis('off') 
 
 
     cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
     cbar.set_label('Direction')
     cbar.set_ticks([-np.pi, 0, np.pi])
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
+
+    axs[4].imshow(grid_small, cmap='gray', origin='lower')
+    axs[4].set_title('hmmm')
 
     plt.tight_layout()
     plt.show()
@@ -488,4 +496,36 @@ def display_grid(dfv, shape=[500, 500]):
     # axs[2].imshow(grid_big, cmap='gray')
     # axs[2].set_title('Transformed Grid Big')
 
+    plt.show()
+
+def display_vxm(dfv,fixed_image, moving_image):
+    volshape = [500, 500]
+    grid = pystrum.pynd.ndutils.bw_grid(vol_shape=volshape, spacing=10)
+
+    fig, axs = plt.subplots(1, 4, figsize=(20, 5)) 
+
+    axs[0].imshow(np.flip(fixed_image, axis=0), cmap='gray')
+    axs[0].set_title('Fixed Image')
+    axs[0].axis('off') 
+
+    axs[1].imshow(np.flip(moving_image, axis=0), cmap='gray')
+    axs[1].set_title('Moving Image')
+    axs[1].axis('off') 
+
+    trf = vxm.networks.Transform(volshape)
+    dfv2 = dfv.reshape([500, 500, 2])
+    warped_grid = trf([grid[None, ..., None], dfv2[None, ...]])
+
+    #ne.plot.flow([dfv2], scale=1/5, width=1)
+
+    dfv = torch.from_numpy(dfv)
+    tr1 = bilinear_interpolation(torch.from_numpy(grid), dfv[:, 0], dfv[:, 1])
+    tr1 = tr1.reshape(volshape).numpy()
+
+    axs[2].imshow(tr1, cmap='gray')
+    axs[2].set_title('grid deformation')
+    
+    axs[3].imshow(warped_grid[0, ..., 0], cmap='gray')
+    axs[3].set_title('image deformation')
+    
     plt.show()

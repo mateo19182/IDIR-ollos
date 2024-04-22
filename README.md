@@ -1,13 +1,13 @@
 # To Do
-centrarse en par de imagees, naturales y simulada
-	RFMID: 102, 103
-	FIRE:
+
+FIRE(naturales): 18(low overlap), 19, (medium overlap)
+RFMID(simuladas): 558, 559
 
 epochs y learning rate
 
 regularizacion con learning rate
 
-visualizacion del grid, garantizar que sea igual.
+visualizacion del grid, garantizar que sea igual! -> volxelmorh otra vez?
 
 stride usado en el estimador de la drivada. si infuye minibatch es uyn parametro relevante.¡ bending...
 
