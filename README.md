@@ -7,7 +7,7 @@ epochs y learning rate
 
 regularizacion con learning rate
 
-visualizacion del grid, garantizar que sea igual! -> volxelmorh otra vez?
+visualizacion del grid, garantizar que sea igual! -> volxelmorh?
 
 stride usado en el estimador de la drivada. si infuye minibatch es uyn parametro relevante.¡ bending...
 

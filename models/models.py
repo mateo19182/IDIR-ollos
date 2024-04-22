@@ -440,7 +440,7 @@ class ImplicitRegistrator2d:
             .detach()
             .numpy()
             .reshape(output_shape[0], output_shape[1])
-            , output.cpu().detach().numpy()
+            , coord_temp.cpu().detach().numpy()
             #,coord_temp.cpu().detach().numpy()
         )
 
