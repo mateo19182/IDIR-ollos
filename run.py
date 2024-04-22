@@ -9,22 +9,22 @@ import numpy as np
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out')
 
-
+'''
 #FIRE
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(18, 21): 
+for i in range(18, 20): 
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
-    kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["bending_regularization"] = False
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = fixed_mask
 
@@ -44,7 +44,7 @@ for i in range(18, 21):
     #saved_images.append(registered_img)
     #saved_images_names.append("MLP no regularization")
 
-
+'''
 #------------------------------------------------------------------------------------
 
 
@@ -60,9 +60,15 @@ for i in range(558, 560):
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
+
+    dfv = np.load('dfv.npy')
+    dfv=dfv
+    general.display_vxm(dfv, og_img.numpy(), geo_img.numpy())
+
+
 
     ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
     ImpReg.fit()
