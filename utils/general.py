@@ -385,6 +385,7 @@ def block_average(arr, block_size):
 
 def display_dfv(image, dfv,fixed_image, moving_image):
 
+    vol_shape = (500, 500)
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 
     u = dfv[:, 0].reshape(image.shape)
@@ -415,26 +416,26 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     axs[1].axis('off') 
     #color= 'red'
 
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape=(1000, 1000), spacing=32, thickness=1))
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape, spacing=24, thickness=1))
     dfv = torch.from_numpy(dfv)
 
     tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
 
-    tr1 = tr1.reshape([1000, 1000]).numpy()
+    tr1 = tr1.reshape(vol_shape).numpy()
 
     axs[2].imshow(tr1, cmap='gray', origin='lower')
     axs[2].set_title('grid deformation')
 
-    axs[3].imshow(image, cmap='gray', origin='lower')
-    quiver = axs[3].quiver(x_avg, y_avg, u_avg, v_avg, angles_avg, cmap='hsv')
+    axs[3].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
+    #quiver = axs[3].quiver(x_avg, y_avg, -u_avg, -v_avg, angles_avg, cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
     axs[3].set_title('Vector Field Visualization')
 
 
-    cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
-    cbar.set_label('Direction')
-    cbar.set_ticks([-np.pi, 0, np.pi])
+    #cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
+    #cbar.set_label('Direction')
+    #cbar.set_ticks([-np.pi, 0, np.pi])
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
     plt.tight_layout()

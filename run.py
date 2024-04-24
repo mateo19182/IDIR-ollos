@@ -9,7 +9,6 @@ import numpy as np
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out')
 
-
 #FIRE
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
@@ -19,12 +18,17 @@ fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask
 for i in range(18, 20): 
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
-    kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
+    kwargs["loss_function"] = "ssim" #mse, l1, ncc, smoothl1, ssim, huber
+    kwargs["lr"] = 0.00001   
+    kwargs["epochs"] = 5000 
+    kwargs["batch_size"] = 10000
+    kwargs["image_shape"] = [500, 500]
+    kwargs["optimizer"] = "adam" #adadelta, sgd
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
-    kwargs["bending_regularization"] = False
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["bending_regularization"] = True
+    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = fixed_mask
 
@@ -32,7 +36,7 @@ for i in range(18, 20):
     #2912
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
-    registered_img, dfv = ImpReg()
+    registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
 
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
@@ -41,7 +45,6 @@ for i in range(18, 20):
 
 #------------------------------------------------------------------------------------
 
-
 #RFMID
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
@@ -49,12 +52,17 @@ saved_images_names = []
 for i in range(558, 560): 
     (og_img, geo_img, clr_img, full_img, mask, geo_mask, original) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
-    kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
+    kwargs["loss_function"] = "ssim" #mse, l1, ncc, smoothl1, ssim, huber
+    kwargs["lr"] = 0.00001   
+    kwargs["epochs"] = 5000 
+    kwargs["batch_size"] = 10000
+    kwargs["image_shape"] = [500, 500]
+    kwargs["optimizer"] = "adam" #adadelta, sgd
     kwargs["verbose"] = True
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"] = out_dir + str(i)
     kwargs["mask"] = mask
 
