@@ -419,7 +419,7 @@ class ImplicitRegistrator2d:
     """This is a class for registrating implicitly represented images."""
 
     def __call__(
-        self, coordinate_tensor=None, output_shape=(1000, 1000), dimension=0, slice_pos=0
+        self, coordinate_tensor=None, output_shape=(500, 500), dimension=0, slice_pos=0
     ):
         """Return the image-values for the given input-coordinates."""
         # Use standard coordinate tensor if none is given
@@ -632,7 +632,6 @@ class ImplicitRegistrator2d:
         self.batch_size = (
             kwargs["batch_size"] if "batch_size" in kwargs else self.args["batch_size"]
         )
-
         # Initialization
         self.moving_image = moving_image
         self.fixed_image = fixed_image
@@ -667,7 +666,7 @@ class ImplicitRegistrator2d:
 
         self.args["method"] = 1
 
-        self.args["lr"] = 0.00001
+        self.args["lr"] = 0.00001   
         self.args["batch_size"] = 10000 #tensor size   
         self.args["layers"] = [2, 256, 256, 256, 2]
         self.args["velocity_steps"] = 1
