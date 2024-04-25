@@ -465,6 +465,11 @@ class ImplicitRegistrator2d:
         self.momentum = (
             kwargs["momentum"] if "momentum" in kwargs else self.args["momentum"]
         )
+        self.save_checkpoints = (
+            kwargs["save_checkpoints"]
+            if "save_checkpoints" in kwargs
+            else self.args["save_checkpoints"]
+        )
         self.optimizer_arg = (
             kwargs["optimizer"] if "optimizer" in kwargs else self.args["optimizer"]
         )
@@ -678,7 +683,7 @@ class ImplicitRegistrator2d:
         self.args["output_regularization"] = False
         self.args["alpha_output"] = 0.2
         self.args["reg_norm_output"] = 1
-
+        self.args["save_checkpoints"] = False
         self.args["jacobian_regularization"] = False
         self.args["alpha_jacobian"] = 0.05
 
@@ -819,12 +824,13 @@ class ImplicitRegistrator2d:
 
         # Perform training iterations
         for i in tqdm.tqdm(range(epochs)):
-            if i%500 == 0:
-                path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
-                torch.save(self.network.state_dict(), path)
-            self.training_iteration(i)
+            if self.save_checkpoints:
+                if i%500 == 0:
+                    path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
+                    torch.save(self.network.state_dict(), path)
+                self.training_iteration(i)
         with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
             for item in self.loss_list:
                 f.write("%s\n" % item)
 
-        general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
+        general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs, self.save_folder)

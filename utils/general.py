@@ -320,7 +320,7 @@ def load_image_RFMID(folder):
         original
     )
 
-def plot_loss_curves(data_loss_list, total_loss_list, epochs):
+def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
     epochs_range = range(1, epochs + 1)
     plt.figure(figsize=(10, 6))
     plt.plot(epochs_range, data_loss_list, label='Data Loss',  linestyle='-', color='blue')
@@ -331,7 +331,9 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs):
     plt.legend()
     plt.grid(True)
 
-    plt.show()
+    #plt.show()
+    plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
+
 
 
 def load_image_FIRE(index, folder):
@@ -383,7 +385,7 @@ def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
     return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
 
-def display_dfv(image, dfv,fixed_image, moving_image):
+def display_dfv(image, dfv,fixed_image, moving_image, save_path):
 
     vol_shape = (500, 500)
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
@@ -439,7 +441,9 @@ def display_dfv(image, dfv,fixed_image, moving_image):
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
+    print(save_path)
+    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     #ne.plot.flow([dfv.reshape([1000, 1000, 2])], width=2, scale=0.1, titles=['Deformation Field'])
 
 
