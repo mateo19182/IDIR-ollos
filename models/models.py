@@ -492,8 +492,8 @@ class ImplicitRegistrator2d:
         )
 
         # Make folder for output
-        # if not self.save_folder == "" and not os.path.isdir(self.save_folder):
-        #     os.mkdir(self.save_folder)
+        if not self.save_folder == "" and not os.path.isdir(self.save_folder):
+            os.mkdir(self.save_folder)
 
         # Add slash to divide folder and filename
         self.save_folder += "/"
@@ -816,8 +816,15 @@ class ImplicitRegistrator2d:
         if not len(self.loss_list) == epochs:
             self.loss_list = [0 for _ in range(epochs)]
             self.data_loss_list = [0 for _ in range(epochs)]
+
         # Perform training iterations
         for i in tqdm.tqdm(range(epochs)):
+            if i%500 == 0:
+                path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
+                torch.save(self.network.state_dict(), path)
             self.training_iteration(i)
-        
+        with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
+            for item in self.loss_list:
+                f.write("%s\n" % item)
+
         general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs)
