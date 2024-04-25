@@ -3,6 +3,8 @@
 FIRE(naturales): 18(low overlap), 19, (medium overlap)
 RFMID(simuladas): 558, 559
 
+evaluacion, 
+
 epochs y learning rate
 
 regularizacion con learning rate
