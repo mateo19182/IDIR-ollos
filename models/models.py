@@ -828,7 +828,8 @@ class ImplicitRegistrator2d:
                 if i%500 == 0:
                     path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
                     torch.save(self.network.state_dict(), path)
-                self.training_iteration(i)
+            self.training_iteration(i)
+
         with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
             for item in self.loss_list:
                 f.write("%s\n" % item)

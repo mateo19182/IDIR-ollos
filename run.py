@@ -20,17 +20,17 @@ for i in range(18, 20):
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001   
-    kwargs["epochs"] = 2500 
-    kwargs["batch_size"] = 10000
-    kwargs["image_shape"] = [500, 500]
-    kwargs["optimizer"] = "adam" #adadelta, sgd
-    kwargs["verbose"] = True
+    kwargs["epochs"] = 5000
+    kwargs["batch_size"] = 20000
+    kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
     kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = fixed_mask
+    kwargs["save_checkpoints"] = False
+
 
     #dfv = np.load('dfv.npy')
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
@@ -53,15 +53,13 @@ for i in range(558, 560):
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 2500 
-    kwargs["batch_size"] = 10000
-    kwargs["image_shape"] = [500, 500]
-    kwargs["optimizer"] = "adam" #adadelta, sgd
-    kwargs["verbose"] = True
+    kwargs["epochs"] = 5000 
+    kwargs["batch_size"] = 20000
+    kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = mask
     kwargs["save_checkpoints"] = False

@@ -5,9 +5,6 @@ import os
 import torch
 import SimpleITK as sitk
 import pystrum
-import voxelmorph as vxm
-from matplotlib.colors import Normalize
-import neurite as ne
 
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
@@ -387,12 +384,12 @@ def block_average(arr, block_size):
 
 def display_dfv(image, dfv,fixed_image, moving_image, save_path):
 
-    vol_shape = (500, 500)
+    vol_shape = image.shape
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 
     u = dfv[:, 0].reshape(image.shape)
     v = dfv[:, 1].reshape(image.shape)
-
+    '''
     M = np.hypot(u, v)
     angles = np.arctan2(v, u)
 
@@ -406,7 +403,7 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
 
     x_avg = block_average(x, skip_factor)
     y_avg = block_average(y, skip_factor)
-
+    '''
     fig, axs = plt.subplots(1, 4, figsize=(20, 5)) 
 
     axs[0].imshow(fixed_image, cmap='gray')
@@ -444,7 +441,7 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     #plt.show()
     print(save_path)
     plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
-    #ne.plot.flow([dfv.reshape([1000, 1000, 2])], width=2, scale=0.1, titles=['Deformation Field'])
+    #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
 
 
     # 0 radians (0 degrees): Red (rightward)
