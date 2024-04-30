@@ -283,6 +283,29 @@ def bilinear_interpolation(input_array, x_indices, y_indices):
     )
     return output
 
+def bilinear_interpolation_single_point(input_array, x_index, y_index):
+    # Scale indices to image size
+    x_index = (x_index + 1) * (input_array.shape[0] - 1) * 0.5
+    y_index = (y_index + 1) * (input_array.shape[1] - 1) * 0.5
+
+    x0 = int(torch.floor(x_index).clamp(0, input_array.shape[0] - 1))
+    y0 = int(torch.floor(y_index).clamp(0, input_array.shape[1] - 1))
+    x1 = min(x0 + 1, input_array.shape[0] - 1)
+    y1 = min(y0 + 1, input_array.shape[1] - 1)
+
+    x = x_index - x0
+    y = y_index - y0
+
+    output = (
+        input_array[x0, y0] * (1 - x) * (1 - y)
+        + input_array[x1, y0] * x * (1 - y)
+        + input_array[x0, y1] * (1 - x) * y
+        + input_array[x1, y1] * x * y
+    )
+    return output
+
+
+
 def load_image_RFMID(folder):
 
     data = np.load(folder)
@@ -314,7 +337,8 @@ def load_image_RFMID(folder):
         full_img,
         mask,
         geo_mask,
-        original
+        original, 
+        matrix
     )
 
 def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
@@ -342,8 +366,11 @@ def load_image_FIRE(index, folder):
     ground_folder = os.path.join(folder, 'Ground Truth')
     files = os.listdir(ground_folder)
     files.sort()
-    with open(os.path.join(ground_folder, files[index*2]), 'r') as f:
-        ground_truth = f.read()
+    ground_truth = []
+    with open(os.path.join(ground_folder, files[index-1]), 'r') as f:
+        for line in f:
+            line = line.strip().split()
+            ground_truth.append([float(line[0]), float(line[1]), float(line[2]), float(line[3])])    
     images = [fixed_image, moving_image] 
     image_names = ['fixed_image', 'moving_image']
     #display_images(images, image_names)
@@ -359,24 +386,51 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-def test_accuracy(transformation, ground_truth):
-    scale = 500/2912
-    lines = ground_truth.strip().split('\n')
+def test_FIRE(dfv, ground_truth, vol_shape):
+    scale = vol_shape[0]/2912
     dists = []
-    error_threshold = 1
-    for line in lines:
-        points = line.split()
+    thresholds = np.arange(0, 26, 1)  # adjust the range and step as needed
+    for points in ground_truth:
         x= float(points[0])*scale
         y=float(points[1])*scale
         x_truth = float(points[2])*scale
         y_truth = float(points[3])*scale
-        transformation=transformation.reshape((500, 500, 2))
-        x_t, y_t = transformation[int(x), int(y)]
+        dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
+        x_t, y_t = dfv[int(x), int(y)]
         x_res, y_res = (x_t*x) + x, (y_t*y) + y
-        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{}".format(x, y, x_truth, y_truth, x_res, y_res))
+        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
-    print(dists)
+    print("Distance: ", np.mean(dists))
+    return np.mean(dists)
+
+def test_RFMID(dfv, matrix, shape):
+    height, width = shape
+    #height, width = (500, 500)
+
+    dfv=dfv.reshape((shape[0], shape[1], 2))
+    #dfv=dfv.reshape((500, 500, 2))
+
+    scale = shape[0]/1820  # diferentes imagenes tienen distinto tamaño
+    #scale = 500/1820
+    matrix = matrix*scale #?
+    dists = []
+
+    for _ in range(10):
+        x = np.random.randint(0, width)
+        y = np.random.randint(0, height)
+        x_t, y_t = dfv[int(x), int(y)]
+        x_res, y_res = (x_t*x) + x, (y_t*y) + y
+
+        point = [x, y, 1]
+        x_truth, y_truth = np.matmul(point, matrix)
+        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
+        dists.append(dist)
+        print("Distance: ", dist)
+    return np.mean(dists)
+
+
 
 def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
@@ -438,9 +492,9 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
     plt.tight_layout()
-    #plt.show()
+    plt.show()
     print(save_path)
-    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
+    #plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
 
 
@@ -449,3 +503,10 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     # π radians (180 degrees): Blue (leftward)
     # 3π/2 radians (270 degrees): Magenta or Yellow (downward)
 
+
+def clean_memory():
+    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        for obj in dir():
+            if torch.is_tensor(eval(obj)):
+                del globals()[obj]
