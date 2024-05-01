@@ -386,10 +386,9 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-def test_FIRE(dfv, ground_truth, vol_shape):
+def test_FIRE(dfv, ground_truth, vol_shape, save_path):
     scale = vol_shape[0]/2912
     dists = []
-    thresholds = np.arange(0, 26, 1)  # adjust the range and step as needed
     for points in ground_truth:
         x= float(points[0])*scale
         y=float(points[1])*scale
@@ -401,19 +400,18 @@ def test_FIRE(dfv, ground_truth, vol_shape):
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
-    print("Distance: ", np.mean(dists))
-    return np.mean(dists)
+    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+        for item in dists:
+            f.write("%s\n" % item)
+        f.write("Mean: %s\n" % np.mean(dists))
+    return dists
 
 def test_RFMID(dfv, matrix, shape):
     height, width = shape
-    #height, width = (500, 500)
-
     dfv=dfv.reshape((shape[0], shape[1], 2))
-    #dfv=dfv.reshape((500, 500, 2))
-
     scale = shape[0]/1820  # diferentes imagenes tienen distinto tamaño
-    #scale = 500/1820
-    matrix = matrix*scale #?
+
+    matrix = matrix*scale #??
     dists = []
 
     for _ in range(10):
@@ -421,9 +419,13 @@ def test_RFMID(dfv, matrix, shape):
         y = np.random.randint(0, height)
         x_t, y_t = dfv[int(x), int(y)]
         x_res, y_res = (x_t*x) + x, (y_t*y) + y
-
-        point = [x, y, 1]
-        x_truth, y_truth = np.matmul(point, matrix)
+        print(matrix)
+        print(matrix.shape)
+        point = np.dot(matrix, np.array([x, y, 0]))
+        print(point)
+        print(point.shape)
+        x_truth = point[0]
+        y_truth = 0
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
@@ -484,19 +486,16 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
     axs[3].set_title('Vector Field Visualization')
-
-
     #cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
     #cbar.set_label('Direction')
     #cbar.set_ticks([-np.pi, 0, np.pi])
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
     print(save_path)
-    #plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
+    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
-
 
     # 0 radians (0 degrees): Red (rightward)
     # π/2 radians (90 degrees): Cyan or Green (upward)

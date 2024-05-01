@@ -8,7 +8,7 @@ import numpy as np
 
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out/')
-'''
+
 #FIRE
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
@@ -19,14 +19,14 @@ for i in range(18, 20):
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
-    kwargs["lr"] = 0.00002
-    kwargs["epochs"] = 20
+    kwargs["lr"] = 0.0001
+    kwargs["epochs"] = 5000
     kwargs["batch_size"] = 20000
     kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
@@ -40,13 +40,13 @@ for i in range(18, 20):
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
 
-    #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
+    general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
     #print(dfv.shape, registered_img.shape)   (810000, 2) (900, 900)
+    general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder)
 
-    acc = general.test_FIRE(dfv, ground_truth, kwargs["image_shape"])
     general.clean_memory()
 
-'''
+
 #------------------------------------------------------------------------------------
 
 #RFMID
@@ -57,14 +57,14 @@ for i in range(558, 560):
     (og_img, geo_img, clr_img, full_img, mask, geo_mask, original, matrix) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
-    kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 5
+    kwargs["lr"] = 0.0001
+    kwargs["epochs"] = 5000
     kwargs["batch_size"] = 20000
     kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = mask
     kwargs["save_checkpoints"] = False
@@ -75,8 +75,8 @@ for i in range(558, 560):
 
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    #general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy(), ImpReg.save_folder)
-    # acc = general.test_RFMID(dfv, matrix, kwargs["image_shape"])  #FAILS on matmul
+    general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy(), ImpReg.save_folder)
+    acc = general.test_RFMID(dfv, matrix, kwargs["image_shape"])  #FAILS on matmul
     general.clean_memory()
 
 
