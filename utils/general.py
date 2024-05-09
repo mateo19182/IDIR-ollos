@@ -3,8 +3,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 import torch
+#import kornia.geometry.linalg as kn
+import cv2
 import SimpleITK as sitk
 import pystrum
+from sklearn .metrics import roc_auc_score
 
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
@@ -283,29 +286,6 @@ def bilinear_interpolation(input_array, x_indices, y_indices):
     )
     return output
 
-def bilinear_interpolation_single_point(input_array, x_index, y_index):
-    # Scale indices to image size
-    x_index = (x_index + 1) * (input_array.shape[0] - 1) * 0.5
-    y_index = (y_index + 1) * (input_array.shape[1] - 1) * 0.5
-
-    x0 = int(torch.floor(x_index).clamp(0, input_array.shape[0] - 1))
-    y0 = int(torch.floor(y_index).clamp(0, input_array.shape[1] - 1))
-    x1 = min(x0 + 1, input_array.shape[0] - 1)
-    y1 = min(y0 + 1, input_array.shape[1] - 1)
-
-    x = x_index - x0
-    y = y_index - y0
-
-    output = (
-        input_array[x0, y0] * (1 - x) * (1 - y)
-        + input_array[x1, y0] * x * (1 - y)
-        + input_array[x0, y1] * (1 - x) * y
-        + input_array[x1, y1] * x * y
-    )
-    return output
-
-
-
 def load_image_RFMID(folder):
 
     data = np.load(folder)
@@ -363,6 +343,9 @@ def load_image_FIRE(index, folder):
     files.sort()
     fixed_image = imageio.imread(os.path.join(images_folder, files[index*2]))
     moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
+    print(os.path.join(images_folder, files[index*2]))
+    moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
+
     ground_folder = os.path.join(folder, 'Ground Truth')
     files = os.listdir(ground_folder)
     files.sort()
@@ -386,50 +369,87 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-def test_FIRE(dfv, ground_truth, vol_shape, save_path):
+def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
     scale = vol_shape[0]/2912
     dists = []
+    thresholds = list(range(1, 26))
+    success_rates = []
+    #plt.figure()
+    plt.imshow(img, cmap='gray')
     for points in ground_truth:
         x= float(points[0])*scale
         y=float(points[1])*scale
         x_truth = float(points[2])*scale
         y_truth = float(points[3])*scale
         dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
-        x_t, y_t = dfv[int(x), int(y)]
+        #x_t, y_t = 0, 0
+        x_t, y_t = scale * dfv[round(x), round(y)]
         x_res, y_res = (x_t*x) + x, (y_t*y) + y
-        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        #sigue fallando algo en la escala del dfv!!!!!!!
+        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
+        plt.scatter([x, x_res, x_truth], [y, y_res, y_truth], color=['b', 'r', 'g'], s=5)
         dists.append(dist)
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
             f.write("%s\n" % item)
         f.write("Mean: %s\n" % np.mean(dists))
+
+    for threshold in thresholds:
+        res = 0
+        for dist in dists:
+            if dist < threshold:
+                res+=1
+        success_rates.append(res/len(dists))
+    print("Mean: ", np.mean(dists))
+
+    plt.figure()
+    plt.plot(thresholds, success_rates)
+    plt.xlabel('Threshold')
+    plt.ylabel('Success Rate')
+    plt.title('Success Rate vs Threshold')
+    plt.ylim([0, 1]) 
+    plt.show()
     return dists
 
-def test_RFMID(dfv, matrix, shape):
+
+def test_RFMID(dfv, matrix, shape, img, mask):
     height, width = shape
     dfv=dfv.reshape((shape[0], shape[1], 2))
-    scale = shape[0]/1820  # diferentes imagenes tienen distinto tamaño
-
+    scale = shape[0]/mask.shape[0]  # diferentes imagenes tienen distinto tamaño !!!
     matrix = matrix*scale #??
+    print(matrix)
+    print(matrix.shape)
     dists = []
+    min_distance = 50 
+    points = []
+    plt.imshow(img, cmap='gray') 
 
     for _ in range(10):
-        x = np.random.randint(0, width)
-        y = np.random.randint(0, height)
+        while True:
+            x = np.random.randint(0, width)
+            y = np.random.randint(0, height)
+            if mask[y, x]: 
+                if all(np.sqrt((x - x0)**2 + (y - y0)**2) >= min_distance for x0, y0 in points):
+                    points.append((x, y))
+                    break
         x_t, y_t = dfv[int(x), int(y)]
         x_res, y_res = (x_t*x) + x, (y_t*y) + y
-        print(matrix)
-        print(matrix.shape)
-        point = np.dot(matrix, np.array([x, y, 0]))
-        print(point)
-        print(point.shape)
-        x_truth = point[0]
-        y_truth = 0
+        
+        #point = np.expand_dims(np.array([[x, y]]), axis=1)
+        #point = cv2.transform(point, matrix)
+
+        #cntrl_kps_2 = transform_points( torch.from_numpy(matrix).double(), torch.from_numpy(np.array([x, y])).double())
+
+        #points = kn.transform_points(torch.from_numpy(matrix).double(), torch.from_numpy(points).double())
+        x_truth, y_truth = 0,0
+        plt.scatter([x, x_res, x_truth], [y, y_res, y_truth], color=['b', 'r', 'g'], s=5)
+
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
         print("Distance: ", dist)
+    plt.show()
     return np.mean(dists)
 
 
@@ -481,7 +501,7 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     axs[2].imshow(tr1, cmap='gray', origin='lower')
     axs[2].set_title('grid deformation')
 
-    axs[3].imshow(np.flip(image, axis=0), cmap='gray', origin='lower')
+    axs[3].imshow((image), cmap='gray', origin='lower')
     #quiver = axs[3].quiver(x_avg, y_avg, -u_avg, -v_avg, angles_avg, cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
     #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
