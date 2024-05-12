@@ -18,8 +18,8 @@ for i in range(3, 20):
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
-    kwargs["lr"] = 0.0001
-    kwargs["epochs"] = 5000
+    kwargs["lr"] = 0.00001
+    kwargs["epochs"] = 5
     kwargs["batch_size"] = 20000
     kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
@@ -46,6 +46,7 @@ for i in range(3, 20):
     general.clean_memory()
 '''
 
+
 #------------------------------------------------------------------------------------
 
 #RFMID
@@ -57,7 +58,7 @@ for i in range(558, 560):
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 5
+    kwargs["epochs"] = 500
     kwargs["batch_size"] = 20000
     kwargs["image_shape"] = [900, 900]
     kwargs["hyper_regularization"] = False
@@ -75,7 +76,7 @@ for i in range(558, 560):
     images = [og_img, geo_img, registered_img, geo_mask] 
     image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
     general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy(), ImpReg.save_folder)
-    acc = general.test_RFMID(dfv, matrix, kwargs["image_shape"], registered_img, mask)  #FAILS on matmul
+    acc = general.test_RFMID(dfv, matrix, kwargs["image_shape"], registered_img, mask)
     general.clean_memory()
 
 
