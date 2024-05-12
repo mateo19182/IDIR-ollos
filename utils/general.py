@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 import torch
-#import kornia.geometry.linalg as kn
+import kornia.geometry.linalg as kn
 import cv2
 import SimpleITK as sitk
 import pystrum
@@ -402,7 +402,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
                 res+=1
         success_rates.append(res/len(dists))
     print("Mean: ", np.mean(dists))
-
+    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     plt.figure()
     plt.plot(thresholds, success_rates)
     plt.xlabel('Threshold')
@@ -412,14 +412,17 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
     plt.show()
     return dists
 
+from scipy.ndimage import zoom
+
 
 def test_RFMID(dfv, matrix, shape, img, mask):
     height, width = shape
     dfv=dfv.reshape((shape[0], shape[1], 2))
-    scale = shape[0]/mask.shape[0]  # diferentes imagenes tienen distinto tamaño !!!
+    scale = shape[0]/mask.shape[0]
     matrix = matrix*scale #??
-    print(matrix)
-    print(matrix.shape)
+
+    mask = zoom(mask, (scale, scale))
+    #mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
     dists = []
     min_distance = 50 
     points = []
@@ -430,21 +433,18 @@ def test_RFMID(dfv, matrix, shape, img, mask):
             x = np.random.randint(0, width)
             y = np.random.randint(0, height)
             if mask[y, x]: 
-                if all(np.sqrt((x - x0)**2 + (y - y0)**2) >= min_distance for x0, y0 in points):
+                if not points or all(np.sqrt((x - x0)**2 + (y - y0)**2) >= min_distance for x0, y0 in points):
                     points.append((x, y))
                     break
-        x_t, y_t = dfv[int(x), int(y)]
+        x_t, y_t = scale * dfv[round(x), round(y)]
         x_res, y_res = (x_t*x) + x, (y_t*y) + y
         
-        #point = np.expand_dims(np.array([[x, y]]), axis=1)
         #point = cv2.transform(point, matrix)
+        points_t = np.expand_dims(np.expand_dims(np.array([x, y]), axis=0), axis=0)
+        points_t = kn.transform_points(torch.from_numpy(matrix).double(), torch.from_numpy(points_t).double())
 
-        #cntrl_kps_2 = transform_points( torch.from_numpy(matrix).double(), torch.from_numpy(np.array([x, y])).double())
-
-        #points = kn.transform_points(torch.from_numpy(matrix).double(), torch.from_numpy(points).double())
-        x_truth, y_truth = 0,0
+        x_truth, y_truth = points_t[0][0][0], points_t[0][0][1]
         plt.scatter([x, x_res, x_truth], [y, y_res, y_truth], color=['b', 'r', 'g'], s=5)
-
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
@@ -513,8 +513,8 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
 
     plt.tight_layout()
     #plt.show()
-    print(save_path)
-    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
+    #print(save_path)
+    #plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
 
     # 0 radians (0 degrees): Red (rightward)

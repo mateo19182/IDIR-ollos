@@ -14,9 +14,9 @@ class SSIM_(_Loss):
     def metric(self, fixed: Tensor, warped: Tensor) -> Tensor:
         # cant use ms_ssim because it requires bigger images, have torch.Size(10000)
         #size = int(np.sqrt(fixed.shape[0]))
-        size=100
-        fixed = fixed.reshape(1, 1, size, size)
-        warped = warped.reshape(1, 1, size, size)
+        # size=100
+        # fixed = fixed.reshape(1, 1, size, size)
+        # warped = warped.reshape(1, 1, size, size)
         #sim_val = ms_ssim(fixed, warped, data_range=1, size_average=True)
         ssim_val = ssim(fixed, warped, data_range=1, size_average=True)
 
