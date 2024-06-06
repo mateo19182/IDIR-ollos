@@ -8,20 +8,21 @@ import numpy as np
 current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out/')
 #FIRE
-'''
-data_dir = os.path.join(current_directory, 'data', 'FIRE')
+
+#data_dir = os.path.join(current_directory, 'data', 'FIRE')
+data_dir = '/home/mateo/IDIR/data/FIRE'
 saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(3, 20): 
+for i in range(8, 20): 
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
-    kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 5
-    kwargs["batch_size"] = 20000
-    kwargs["image_shape"] = [900, 900]
+    kwargs["lr"] = 0.00001 
+    kwargs["epochs"] = 0    #2500
+    kwargs["batch_size"] = 75000    #10000
+    kwargs["image_shape"] = [1000, 1000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
@@ -30,7 +31,7 @@ for i in range(3, 20):
     kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
 
-
+    general.showFIRE(moving_image, fixed_image, ground_truth)
     #dfv = np.load('dfv.npy')
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
@@ -38,15 +39,14 @@ for i in range(3, 20):
 
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
-
     general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
-    #print(dfv.shape, registered_img.shape)   (810000, 2) (900, 900)
-    general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img)
+    general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image)
+    
 
-    general.clean_memory()
+    #general.clean_memory()
+
+
 '''
-
-
 #------------------------------------------------------------------------------------
 
 #RFMID
@@ -80,7 +80,7 @@ for i in range(558, 560):
     general.clean_memory()
 
 
-
+'''
 
 #------------------------------------------------------------------------------------
 '''
