@@ -175,7 +175,7 @@ def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
 
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
     coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
 
@@ -187,7 +187,7 @@ def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
     """Make a coordinate tensor."""
 
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
 
@@ -199,7 +199,7 @@ def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
     """Make a coordinate tensor."""
 
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
@@ -232,7 +232,7 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     """Make a coordinate tensor."""
 
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor)
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
     coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
     coordinate_tensor = coordinate_tensor.view([-1, 2])
     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
@@ -246,7 +246,7 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     # Create a meshgrid for the dimensions
     x = torch.linspace(-1, 1, dims[1])
     y = torch.linspace(-1, 1, dims[0])
-    xv, yv = torch.meshgrid(x, y)
+    xv, yv = torch.meshgrid(x, y, indexing="ij")
     
     # Stack the coordinate grids
     coordinate_grid = torch.stack([xv, yv], dim=-1) # Shape: [dims[0], dims[1], 2]
@@ -344,13 +344,13 @@ def load_image_FIRE(index, folder):
     fixed_image = imageio.imread(os.path.join(images_folder, files[index*2]))
     moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
     print(os.path.join(images_folder, files[index*2]))
-    moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
 
     ground_folder = os.path.join(folder, 'Ground Truth')
     files = os.listdir(ground_folder)
     files.sort()
     ground_truth = []
-    with open(os.path.join(ground_folder, files[index-1]), 'r') as f:
+    print(os.path.join(ground_folder, files[index]))
+    with open(os.path.join(ground_folder, files[index]), 'r') as f:
         for line in f:
             line = line.strip().split()
             ground_truth.append([float(line[0]), float(line[1]), float(line[2]), float(line[3])])    
@@ -369,18 +369,53 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
+
+def showFIRE(moving_image, fixed_image, ground_truth):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    axes[0].imshow(moving_image, cmap='gray')
+    axes[0].set_title('Moving Image')    
+    #plt.gca().invert_yaxis()
+    axes[1].imshow(fixed_image, cmap='gray')
+    axes[1].set_title('Fixed Image')
+    #plt.gca().invert_yaxis()
+    height = fixed_image.shape[0]
+    for points in ground_truth:
+        x = float(points[0])
+        y = float(points[1])
+        x_truth = float(points[2])
+        y_truth = float(points[3])
+        #y = height - y
+        #y_truth = height -y_truth
+        print("x: {} y: {} x_truth: {} y_truth: {}".format(x, y, x_truth, y_truth))
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x, y)))        
+        axes[0].scatter(x_truth, y_truth, c='b', s=2)  # Moving image point
+        axes[1].scatter(x, y, c='g', s=2)  # Fixed image point
+    plt.savefig('true.png', format='png')
+
+def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image):
     scale = vol_shape[0]/2912
     dists = []
     thresholds = list(range(1, 26))
     success_rates = []
-    #plt.figure()
-    plt.imshow(img, cmap='gray')
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    axes[0].imshow(moving_image, cmap='gray')
+    axes[0].set_title('Moving Image')    
+    axes[1].imshow(fixed_image, cmap='gray')
+    axes[1].set_title('Fixed Image')
+    axes[2].imshow(img, cmap='gray')
+    axes[2].set_title('Registered Image')
+    
     for points in ground_truth:
-        x= float(points[0])*scale
-        y=float(points[1])*scale
-        x_truth = float(points[2])*scale
-        y_truth = float(points[3])*scale
+        x= float(points[0])
+        y=float(points[1])
+        x_truth = float(points[2])
+        y_truth = float(points[3])
+        axes[0].scatter(x_truth, y_truth, c='w', s=2)  # Moving image points
+        axes[1].scatter(x, y, c='g', s=2)  # Fixed image points
+        x=x*scale
+        y=y*scale
+        x_truth=x_truth*scale
+        y_truth=y_truth*scale
         dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
         #x_t, y_t = 0, 0
         x_t, y_t = scale * dfv[round(x), round(y)]
@@ -388,7 +423,9 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
         #sigue fallando algo en la escala del dfv!!!!!!!
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
-        plt.scatter([x, x_res, x_truth], [y, y_res, y_truth], color=['b', 'r', 'g'], s=5)
+        axes[2].scatter(x_truth, y_truth, c='b', s=2)  # Registered image points
+        axes[2].scatter(x, y, c='y', s=2)  # Registered image points
+
         dists.append(dist)
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
@@ -402,7 +439,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img):
                 res+=1
         success_rates.append(res/len(dists))
     print("Mean: ", np.mean(dists))
-    plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
+    plt.savefig('pls.png', format='png')
     plt.figure()
     plt.plot(thresholds, success_rates)
     plt.xlabel('Threshold')
@@ -451,8 +488,6 @@ def test_RFMID(dfv, matrix, shape, img, mask):
         print("Distance: ", dist)
     plt.show()
     return np.mean(dists)
-
-
 
 def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
@@ -512,7 +547,7 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
     #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
 
     plt.tight_layout()
-    #plt.show()
+    plt.show()
     #print(save_path)
     #plt.savefig(os.path.join(save_path,'plot.svg'), format='svg')
     #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
