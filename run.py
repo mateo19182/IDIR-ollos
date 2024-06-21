@@ -15,13 +15,13 @@ saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(8, 20): 
+for i in range(18, 19): 
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
-    kwargs["lr"] = 0.00001 
-    kwargs["epochs"] = 0    #2500
-    kwargs["batch_size"] = 75000    #10000
+    kwargs["lr"] = 0.00001
+    kwargs["epochs"] = 100    #2500
+    kwargs["batch_size"] = 20000    #10000
     kwargs["image_shape"] = [1000, 1000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
@@ -31,7 +31,6 @@ for i in range(8, 20):
     kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
 
-    general.showFIRE(moving_image, fixed_image, ground_truth)
     #dfv = np.load('dfv.npy')
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
@@ -46,21 +45,20 @@ for i in range(8, 20):
     #general.clean_memory()
 
 
-'''
 #------------------------------------------------------------------------------------
-
+'''
 #RFMID
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 saved_images = []
 saved_images_names = []
-for i in range(558, 560): 
+for i in range(1, 2): 
     (og_img, geo_img, clr_img, full_img, mask, geo_mask, original, matrix) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 500
-    kwargs["batch_size"] = 20000
-    kwargs["image_shape"] = [900, 900]
+    kwargs["epochs"] = 0
+    kwargs["batch_size"] = 50000
+    kwargs["image_shape"] = [1000, 1000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
@@ -79,9 +77,7 @@ for i in range(558, 560):
     acc = general.test_RFMID(dfv, matrix, kwargs["image_shape"], registered_img, mask)
     general.clean_memory()
 
-
 '''
-
 #------------------------------------------------------------------------------------
 '''
 #IDIR
