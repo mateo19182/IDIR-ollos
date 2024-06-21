@@ -428,7 +428,7 @@ class ImplicitRegistrator2d:
             coordinate_tensor = general.make_coordinate_tensor_2d(
                 output_shape
             )
-        
+
 
         output = self.network(coordinate_tensor)
 
@@ -442,7 +442,6 @@ class ImplicitRegistrator2d:
             .numpy()
             .reshape(output_shape[0], output_shape[1])
             , coord_temp.cpu().detach().numpy()
-            #,coord_temp.cpu().detach().numpy()
         )
 
     def __init__(self, moving_image, fixed_image, **kwargs):
@@ -738,7 +737,7 @@ class ImplicitRegistrator2d:
             coordinate_tensor[:, 0],
             coordinate_tensor[:, 1],
         )
-        
+
         # Compute the loss
         loss += self.criterion(transformed_image, fixed_image)
 

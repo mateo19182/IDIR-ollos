@@ -1,6 +1,11 @@
 # To Do
 
-- get evals to work
+- evals
+  - desplazamiento 0 epochs -> weights are initialized on netwroks.py -> are those good?
+    - DFVs -> are they scale dependant?
+      - 0s no deformation
+  - RFMID puntos no aleatorios
+
 - find good parameters
   - epochs, learning rate
 
