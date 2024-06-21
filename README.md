@@ -1,8 +1,11 @@
 # To Do
 
+
+
+
 - evals
   - desplazamiento 0 epochs -> weights are initialized on netwroks.py -> are those good?
-    - DFVs -> are they scale dependant?
+    - DFVs -> are they scale dependant? no lo entiendo aun
       - 0s no deformation
   - RFMID puntos no aleatorios
 
@@ -18,6 +21,10 @@ out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] 
 
 regularizacion con learning rate
 stride usado en el estimador de la drivada. si infuye minibatch es uyn parametro relevante.¡ bending...
+
+
+
+find . -type d -exec bash -c 'count=$(find "{}" -type f | wc -l); [ $count -lt 4 ] && rm -rf "{}"' \;
 
 
 # Run 
