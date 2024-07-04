@@ -260,31 +260,72 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     return coordinate_grid
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
-    #scale indices to image size
+
+    # Convert indices from [-1, 1] to [0, width-1] or [0, height-1]
     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
     y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
 
+    # Get the four surrounding pixel coordinates
     x0 = torch.floor(x_indices.detach()).to(torch.long)
     y0 = torch.floor(y_indices.detach()).to(torch.long)
     x1 = x0 + 1
     y1 = y0 + 1
 
+    # Clamp the coordinates to be within the image bounds
     x0 = torch.clamp(x0, 0, input_array.shape[0] - 1)
     y0 = torch.clamp(y0, 0, input_array.shape[1] - 1)
     x1 = torch.clamp(x1, 0, input_array.shape[0] - 1)
     y1 = torch.clamp(y1, 0, input_array.shape[1] - 1)
 
+    # Calculate the interpolation weights
     x = x_indices - x0
     y = y_indices - y0
-
+    
+    # Perform bilinear interpolation
     output = (
-        input_array[x0, y0] * (1 - x) * (1 - y)
-        + input_array[x1, y0] * x * (1 - y)
-        + input_array[x0, y1] * (1 - x) * y
-        + input_array[x1, y1] * x * y
+        input_array[x0, y0] * (1 - x) * (1 - y) +
+        input_array[x1, y0] * x * (1 - y) +
+        input_array[x0, y1] * (1 - x) * y +
+        input_array[x1, y1] * x * y
     )
+    
     return output
 
+def bilinear_interpolation2(input_array, x_indices, y_indices):
+    # Convert indices from [-1, 1] to [0, width-1] or [0, height-1]
+    x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
+    y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
+
+    # Get the four surrounding pixel coordinates
+    x0 = np.floor(x_indices).astype(np.int64)
+    y0 = np.floor(y_indices).astype(np.int64)
+    x1 = x0 + 1
+    y1 = y0 + 1
+
+    # Clamp the coordinates to be within the image bounds
+    x0 = np.clip(x0, 0, input_array.shape[0] - 1)
+    y0 = np.clip(y0, 0, input_array.shape[1] - 1)
+    x1 = np.clip(x1, 0, input_array.shape[0] - 1)
+    y1 = np.clip(y1, 0, input_array.shape[1] - 1)
+
+    # Calculate the interpolation weights
+    x = x_indices - x0
+    y = y_indices - y0
+    
+    # Perform bilinear interpolation
+    output = (
+        input_array[x0, y0] * (1 - x) * (1 - y) +
+        input_array[x1, y0] * x * (1 - y) +
+        input_array[x0, y1] * (1 - x) * y +
+        input_array[x1, y1] * x * y
+    )
+    output = output.reshape([1000, 1000])
+
+    return output
+
+
+
+    
 def load_image_RFMID(folder):
 
     data = np.load(folder)
@@ -366,18 +407,65 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-from scipy.interpolate import interpn
 
-def interpolate_point(deformation_field, point):
-    return point[0], point[1]
+def deform_single_point(x, y, x_indices, y_indices, img_size):
+    height, width = img_size
+    
+    # scale dfv to img_size
+    x_indices_scaled = (x_indices + 1) * (height - 1) * 0.5
+    y_indices_scaled = (y_indices + 1) * (width - 1) * 0.5
+    
+    # integer coordinates for indexing
+    x0 = int(np.floor(x))
+    y0 = int(np.floor(y))
+    x1 = x0 + 1
+    y1 = y0 + 1
+    
+    # clamp
+    x0 = np.clip(x0, 0, height - 1)
+    y0 = np.clip(y0, 0, width - 1)
+    x1 = np.clip(x1, 0, height - 1)
+    y1 = np.clip(y1, 0, width - 1)
+    
+    # interpolation weights
+    x_weight = x - x0
+    y_weight = y - y0
+    
+    dx = (
+        x_indices_scaled[x0, y0] * (1 - x_weight) * (1 - y_weight) +
+        x_indices_scaled[x1, y0] * x_weight * (1 - y_weight) +
+        x_indices_scaled[x0, y1] * (1 - x_weight) * y_weight +
+        x_indices_scaled[x1, y1] * x_weight * y_weight
+    )
+    dy = (
+        y_indices_scaled[x0, y0] * (1 - x_weight) * (1 - y_weight) +
+        y_indices_scaled[x1, y0] * x_weight * (1 - y_weight) +
+        y_indices_scaled[x0, y1] * (1 - x_weight) * y_weight +
+        y_indices_scaled[x1, y1] * x_weight * y_weight
+    )
+    
+    # Apply the deformation to the point
+    new_x = x + dx
+    new_y = y + dy
+    
+    return new_x, new_y
 
 
-def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image):
+def compute_point(net, points, size=1000):
+    coordinate_tensor = torch.FloatTensor(points / (size)) - 1.0
+    output = net(coordinate_tensor.cuda())
+    delta = output.cpu().detach().numpy() * (size)
+    #print(points, points+delta)
+    return points + delta
+
+
+def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image, net):
     scale = vol_shape[0]/2912
     dists = []
     thresholds = list(range(1, 26))
     success_rates = []
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    dfv0 = np.zeros_like(dfv)
 
     axes[0].imshow(fixed_image, cmap='gray')
     axes[0].set_title('Fixed Image')
@@ -386,13 +474,20 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     axes[1].set_title('Moving Image')    
 
     resized_image = cv2.resize(moving_image.detach().cpu().numpy(), (1000, 1000))
+    #img
+    
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
     
-    #dfv = np.zeros_like(dfv)
-
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
-    print(dfv)
+
+    #dfv[:, :, 0] = 500  # x-displacement
+    #dfv[:, :, 1] = 0
+
+    import json
+
+    with open('dfv.json', 'w') as f:
+        json.dump(dfv.tolist(), f, indent=2)
 
     for points in ground_truth:
         x= float(points[0])
@@ -402,21 +497,27 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
 
-        x_truth=x_truth*scale
-        y_truth=y_truth*scale
-        x=x*scale
-        y=y*scale
-        # x_t, y_t = scale*dfv[x, y]
-        # x_res, y_res = (x_t*x) + x , (y_t*y) + y 
+        x_truth_s=x_truth*scale
+        y_truth_s=y_truth*scale
+        x_s=x*scale
+        y_s=y*scale
 
-        x_res, y_res = interpolate_point(dfv, (x_truth,y_truth))
-        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        #dx, dy = dfv[int(y_truth), int(x_truth)]  #*vol_shape *scale
+        #x_res = x_truth + dx
+        #y_res = y_truth + dy
+
+        x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,0], (vol_shape[0], vol_shape[1]))
+
+        #x_res, y_res = compute_point(net, np.array([x_truth, y_truth]))
+
+        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
-        #axes[2].scatter(x_truth, y_truth, c='w', s=2)  # Registered image points
-        #axes[2].scatter(x, y, c='g', s=2)  # Registered image points
+        axes[2].scatter(x_truth_s, y_truth_s, c='g', s=1)  # Registered image points
+        #axes[2].scatter(x, y, c='2', s=1)  # Registered image points
         axes[2].scatter(x_res, y_res, c='b', s=3)  # Registered image points 
-
         dists.append(dist)
+
+    
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
             f.write("%s\n" % item)
@@ -438,8 +539,6 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.ylim([0, 1]) 
     plt.show()
     return dists
-
-from scipy.ndimage import zoom
 
 
 def test_RFMID(dfv, matrix, shape, img, mask):
@@ -486,7 +585,6 @@ def block_average(arr, block_size):
     return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
 
 def display_dfv(image, dfv,fixed_image, moving_image, save_path):
-
     vol_shape = image.shape
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 

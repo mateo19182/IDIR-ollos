@@ -428,7 +428,7 @@ class ImplicitRegistrator2d:
             coordinate_tensor = general.make_coordinate_tensor_2d(
                 output_shape
             )
-
+        
 
         output = self.network(coordinate_tensor)
 
