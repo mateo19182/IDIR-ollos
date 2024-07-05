@@ -41,8 +41,6 @@
   [ 0.744594    0.7082263 ]]]
 
 
-se supone que va normalizado entre [-1, 1]? no puede ser el movimiento de pixeles tal cual, esta ligado al tamaño de la imagen (scale invariant)
-
 
 - evals
   - desplazamiento 0 epochs algo hay -> weights are initialized on netwroks.py -> are those good? (los d MLP arriba izq siempre?)
