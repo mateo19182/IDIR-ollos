@@ -20,7 +20,7 @@ for i in range(20, 21):
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00002
-    kwargs["epochs"] = 100    #2500
+    kwargs["epochs"] = 0    #2500
     kwargs["batch_size"] = 20000    #10000
     kwargs["image_shape"] = [2000, 2000]
     kwargs["hyper_regularization"] = False

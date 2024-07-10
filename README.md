@@ -41,7 +41,6 @@
   [ 0.744594    0.7082263 ]]]
 
 
-
 - evals
   - desplazamiento 0 epochs algo hay -> weights are initialized on netwroks.py -> are those good? (los d MLP arriba izq siempre?)
     - DFVs -> are they scale dependant? no lo entiendo aun

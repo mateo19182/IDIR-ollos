@@ -410,7 +410,7 @@ def load_image_FIRE(index, folder):
 
 def deform_single_point(x, y, x_indices, y_indices, img_size):
     height, width = img_size
-    
+    print(img_size)
     # scale dfv to img_size
     x_indices_scaled = (x_indices + 1) * (height - 1) * 0.5
     y_indices_scaled = (y_indices + 1) * (width - 1) * 0.5
@@ -451,7 +451,7 @@ def deform_single_point(x, y, x_indices, y_indices, img_size):
     return new_x, new_y
 
 
-def compute_point(net, points, size=1000):
+def compute_point(net, points, size=2000):
     coordinate_tensor = torch.FloatTensor(points / (size)) - 1.0
     output = net(coordinate_tensor.cuda())
     delta = output.cpu().detach().numpy() * (size)
@@ -474,9 +474,14 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     axes[1].set_title('Moving Image')    
 
     resized_image = cv2.resize(moving_image.detach().cpu().numpy(), (1000, 1000))
-    #img
+    resized_image2 = cv2.resize(img, (2912, 2912))
     
-    axes[2].imshow(img, cmap='gray')
+    #grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=24, thickness=1))
+    #dfv = torch.from_numpy(dfv)
+    #tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
+    #tr1 = tr1.reshape(vol_shape).numpy()
+
+    axes[2].imshow(resized_image2, cmap='gray')
     axes[2].set_title('Registered Image')
     
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
@@ -484,10 +489,9 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     #dfv[:, :, 0] = 500  # x-displacement
     #dfv[:, :, 1] = 0
 
-    import json
-
-    with open('dfv.json', 'w') as f:
-        json.dump(dfv.tolist(), f, indent=2)
+    #import json
+    #with open('dfv.json', 'w') as f:
+    #    json.dump(dfv.tolist(), f, indent=2)
 
     for points in ground_truth:
         x= float(points[0])
@@ -501,18 +505,17 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         y_truth_s=y_truth*scale
         x_s=x*scale
         y_s=y*scale
-
-        #dx, dy = dfv[int(y_truth), int(x_truth)]  #*vol_shape *scale
-        #x_res = x_truth + dx
-        #y_res = y_truth + dy
-
-        x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,0], (vol_shape[0], vol_shape[1]))
+        dx, dy = dfv[int(y_truth_s), int(x_truth_s)]    * scale
+        print(dx, dy)
+        x_res = x_truth + dx
+        y_res = y_truth + dy
+        #x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,1], (vol_shape[0], vol_shape[1]))
 
         #x_res, y_res = compute_point(net, np.array([x_truth, y_truth]))
 
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
-        axes[2].scatter(x_truth_s, y_truth_s, c='g', s=1)  # Registered image points
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res))) # escala correcta¿
+        axes[2].scatter(x_truth, y_truth, c='g', s=1)  # Registered image points
         #axes[2].scatter(x, y, c='2', s=1)  # Registered image points
         axes[2].scatter(x_res, y_res, c='b', s=3)  # Registered image points 
         dists.append(dist)
