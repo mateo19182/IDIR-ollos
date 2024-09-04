@@ -15,7 +15,7 @@ saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(0, 1):
+for i in range(0, 10):
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
@@ -26,7 +26,7 @@ for i in range(0, 1):
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
@@ -35,7 +35,7 @@ for i in range(0, 1):
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
     registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
-    #np.save('dfv_01.npy', dfv)
+    np.save('dfv_01.npy', dfv)
 
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
