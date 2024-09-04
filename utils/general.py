@@ -322,9 +322,6 @@ def bilinear_interpolation2(input_array, x_indices, y_indices):
     output = output.reshape([1000, 1000])
 
     return output
-
-
-
     
 def load_image_RFMID(folder):
 
@@ -374,7 +371,6 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
     #plt.show()
     plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
 
-
 def load_image_FIRE(index, folder):
     images_folder = os.path.join(folder, 'Images')
     files = os.listdir(images_folder)
@@ -406,7 +402,6 @@ def load_image_FIRE(index, folder):
         grayscale_images[0], 
         grayscale_images[1]
     )
-
 
 def deform_single_point(x, y, x_indices, y_indices, img_size):
     height, width = img_size
@@ -466,33 +461,32 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     success_rates = []
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     dfv0 = np.zeros_like(dfv)
-
     axes[0].imshow(fixed_image, cmap='gray')
     axes[0].set_title('Fixed Image')
 
     axes[1].imshow(moving_image, cmap='gray')
     axes[1].set_title('Moving Image')    
 
-    resized_image = cv2.resize(moving_image.detach().cpu().numpy(), (1000, 1000))
-    resized_image2 = cv2.resize(img, (2912, 2912))
+    #resized_image = cv2.resize(moving_image.detach().cpu().numpy(), (1000, 1000))
+    #resized_image2 = cv2.resize(img, (2912, 2912))
     
     #grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=24, thickness=1))
     #dfv = torch.from_numpy(dfv)
     #tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
     #tr1 = tr1.reshape(vol_shape).numpy()
 
-    axes[2].imshow(resized_image2, cmap='gray')
+    axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
     
-    dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
+    #dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
     #dfv[:, :, 0] = 500  # x-displacement
     #dfv[:, :, 1] = 0
 
-    #import json
-    #with open('dfv.json', 'w') as f:
-    #    json.dump(dfv.tolist(), f, indent=2)
-
+    #print(dfv.shape) #(2250000, 2)
+    #print(fixed_image.shape) #[2912, 2912]
+    #print(moving_image.shape)
+    #print(img.shape) #(1500, 1500)
     for points in ground_truth:
         x= float(points[0])
         y=float(points[1])
@@ -501,23 +495,25 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
 
+        #points in new scale
         x_truth_s=x_truth*scale
         y_truth_s=y_truth*scale
         x_s=x*scale
         y_s=y*scale
-        dx, dy = dfv[int(y_truth_s), int(x_truth_s)]    * scale
-        print(dx, dy)
-        x_res = x_truth + dx
-        y_res = y_truth + dy
-        #x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,1], (vol_shape[0], vol_shape[1]))
 
+        dx, dy = dfv[int(y_s)+ int(x_s)] #* vol_shape           # losing precision here, there is a better way
+        print(dx, dy)
+        x_res = (x_s + dx)
+        y_res = (y_s + dy)
+
+        #x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,1], (vol_shape[0], vol_shape[1]))
         #x_res, y_res = compute_point(net, np.array([x_truth, y_truth]))
 
-        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res))) # escala correcta¿
-        axes[2].scatter(x_truth, y_truth, c='g', s=1)  # Registered image points
-        #axes[2].scatter(x, y, c='2', s=1)  # Registered image points
-        axes[2].scatter(x_res, y_res, c='b', s=3)  # Registered image points 
+        axes[2].scatter(x_truth_s, y_truth_s, c='g', s=1) 
+        #axes[2].scatter(x, y, c='2', s=1)  
+        axes[2].scatter(x_res, y_res, c='b', s=1)  
         dists.append(dist)
 
     
@@ -533,7 +529,8 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
                 res+=1
         success_rates.append(res/len(dists))
     print("Mean: ", np.mean(dists))
-    plt.savefig('points_fire.png', format='png')
+    fig_path = os.path.join(save_path, 'plot2.png')
+    plt.savefig(fig_path, format='png')
     plt.figure()
     plt.plot(thresholds, success_rates)
     plt.xlabel('Threshold')
@@ -579,7 +576,7 @@ def test_RFMID(dfv, matrix, shape, img, mask):
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         dists.append(dist)
         print("Distance: ", dist)
-    plt.savefig('points_rfmid.png', format='png')
+    #plt.savefig('points_rfmid.png', format='png')
     return np.mean(dists) 
 
 
@@ -587,7 +584,7 @@ def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
     return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
 
-def display_dfv(image, dfv,fixed_image, moving_image, save_path):
+def display_dfv(image, dfv, fixed_image, moving_image, save_path):
     vol_shape = image.shape
     y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
 
@@ -652,8 +649,12 @@ def display_dfv(image, dfv,fixed_image, moving_image, save_path):
 
     plt.tight_layout()
     plt.show()
-    #print(save_path)
-    plt.savefig('plot.png', format='png')
+    
+    # Save the figure in the specified save_path
+    fig_path = os.path.join(save_path, 'plot.png')
+    plt.savefig(fig_path, format='png')
+    print(f"Figure saved at: {fig_path}")
+    
     #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
 
     # 0 radians (0 degrees): Red (rightward)
