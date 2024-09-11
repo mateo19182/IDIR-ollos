@@ -834,4 +834,4 @@ class ImplicitRegistrator2d:
             for item in self.loss_list:
                 f.write("%s\n" % item)
 
-        general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs, self.save_folder)
+        #general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs, self.save_folder)

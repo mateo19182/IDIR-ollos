@@ -239,7 +239,6 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     coordinate_tensor = coordinate_tensor.cuda()
     return coordinate_tensor
 
-
 def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     """Make a 2D coordinate grid."""
     
@@ -459,7 +458,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     dists = []
     thresholds = list(range(1, 26))
     success_rates = []
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
     dfv0 = np.zeros_like(dfv)
     axes[0].imshow(fixed_image, cmap='gray')
     axes[0].set_title('Fixed Image')
@@ -470,14 +469,16 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     #resized_image = cv2.resize(moving_image.detach().cpu().numpy(), (1000, 1000))
     #resized_image2 = cv2.resize(img, (2912, 2912))
     
-    #grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=24, thickness=1))
-    #dfv = torch.from_numpy(dfv)
-    #tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
-    #tr1 = tr1.reshape(vol_shape).numpy()
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
+    dfv = torch.from_numpy(dfv)
+    tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
+    tr1 = tr1.reshape(vol_shape).numpy()
 
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
     
+    axes[3].imshow(tr1, cmap='gray')
+    axes[3].set_title('grid')
     #dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
     #dfv[:, :, 0] = 500  # x-displacement
@@ -510,12 +511,12 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         #x_res, y_res = compute_point(net, np.array([x_truth, y_truth]))
 
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res))) # escala correcta¿
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res))) # MAL, ademas en la escala de entrenamiento, no la original
+        axes[2].scatter(x_s, y_s, c='w', s=1) 
         axes[2].scatter(x_truth_s, y_truth_s, c='g', s=1) 
         #axes[2].scatter(x, y, c='2', s=1)  
         axes[2].scatter(x_res, y_res, c='b', s=1)  
         dists.append(dist)
-
     
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
@@ -529,7 +530,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
                 res+=1
         success_rates.append(res/len(dists))
     print("Mean: ", np.mean(dists))
-    fig_path = os.path.join(save_path, 'plot2.png')
+    fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
     plt.figure()
     plt.plot(thresholds, success_rates)
@@ -539,7 +540,6 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.ylim([0, 1]) 
     plt.show()
     return dists
-
 
 def test_RFMID(dfv, matrix, shape, img, mask):
     # TODO: cambiar a puntos fijos, grid dentro de mask, aleatorios es mal si no hay muchos ejemplos...
@@ -578,7 +578,6 @@ def test_RFMID(dfv, matrix, shape, img, mask):
         print("Distance: ", dist)
     #plt.savefig('points_rfmid.png', format='png')
     return np.mean(dists) 
-
 
 def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
@@ -651,7 +650,7 @@ def display_dfv(image, dfv, fixed_image, moving_image, save_path):
     plt.show()
     
     # Save the figure in the specified save_path
-    fig_path = os.path.join(save_path, 'plot.png')
+    fig_path = os.path.join(save_path, 'plot2.png')
     plt.savefig(fig_path, format='png')
     print(f"Figure saved at: {fig_path}")
     

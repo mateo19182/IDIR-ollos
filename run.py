@@ -9,20 +9,19 @@ current_directory = os.getcwd()
 out_dir = os.path.join(current_directory, 'out/')
 #FIRE
 
-#data_dir = os.path.join(current_directory, 'data', 'FIRE')
-data_dir = '/home/mateo/projects/IDIR/data/FIRE'
+data_dir = os.path.join(current_directory, 'data', 'FIRE')
 saved_images = []
 saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-for i in range(0, 10):
+for i in range(0, 5):
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
     kwargs["epochs"] = 3000    #2500
-    kwargs["batch_size"] = 20000    #10000
-    kwargs["image_shape"] = [1500, 1500]
+    kwargs["batch_size"] = 25000    #10000
+    kwargs["image_shape"] = [2000, 2000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
@@ -39,10 +38,9 @@ for i in range(0, 10):
 
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
-    general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
+    #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
     general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image,ImpReg.network )
     
-
     #general.clean_memory()
 
 
