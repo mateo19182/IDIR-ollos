@@ -444,14 +444,12 @@ def deform_single_point(x, y, x_indices, y_indices, img_size):
     
     return new_x, new_y
 
-
 def compute_point(net, points, size=2000):
     coordinate_tensor = torch.FloatTensor(points / (size)) - 1.0
     output = net(coordinate_tensor.cuda())
     delta = output.cpu().detach().numpy() * (size)
     #print(points, points+delta)
     return points + delta
-
 
 def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image, net):
     scale = vol_shape[0]/2912
@@ -502,16 +500,16 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         x_s=x*scale
         y_s=y*scale
 
-        dx, dy = dfv[int(y_s)+ int(x_s)] #* vol_shape           # losing precision here, there is a better way
-        print(dx, dy)
+        dx, dy = dfv[int(y_s)+ int(x_s)] #round() ?        # losing precision here, need to do interpolation
+        #print(dx, dy)
         x_res = (x_s + dx)
         y_res = (y_s + dy)
 
         #x_res, y_res = deform_single_point(x_truth_s, y_truth_s, dfv[:,:,0], dfv[:,:,1], (vol_shape[0], vol_shape[1]))
         #x_res, y_res = compute_point(net, np.array([x_truth, y_truth]))
 
-        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res))) # MAL, ademas en la escala de entrenamiento, no la original
+        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res*(1/scale), y_res*(1/scale))))
         axes[2].scatter(x_s, y_s, c='w', s=1) 
         axes[2].scatter(x_truth_s, y_truth_s, c='g', s=1) 
         #axes[2].scatter(x, y, c='2', s=1)  
@@ -538,7 +536,8 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.ylabel('Success Rate')
     plt.title('Success Rate vs Threshold')
     plt.ylim([0, 1]) 
-    plt.show()
+    fig_path = os.path.join(save_path, 'eval.png')
+    plt.savefig(fig_path, format='png')
     return dists
 
 def test_RFMID(dfv, matrix, shape, img, mask):
@@ -548,7 +547,7 @@ def test_RFMID(dfv, matrix, shape, img, mask):
     scale = shape[0]/mask.shape[0]
     matrix = matrix*scale #??
 
-    mask = zoom(mask, (scale, scale))
+    #mask = zoom(mask, (scale, scale))
     #mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
     dists = []
     min_distance = 50 
