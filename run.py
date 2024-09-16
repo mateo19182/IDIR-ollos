@@ -7,7 +7,7 @@ import numpy as np
 
 current_directory = os.getcwd()
 #FIRE
-'''
+
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
 out_dir = os.path.join(current_directory, 'out/', 'FIRE/')
 
@@ -16,13 +16,13 @@ saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
 #for i in range(0, 5):
-for i in [0, 10, 20, 30, 100, 110]:
+for i in [30]:# , 10, 20, 30, 100, 110]:
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 2000    #2500
-    kwargs["batch_size"] = 25000    #10000
+    kwargs["epochs"] = 2500    #2500
+    kwargs["batch_size"] = 10000   #10000
     kwargs["image_shape"] = [1500, 1500]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
@@ -36,7 +36,7 @@ for i in [0, 10, 20, 30, 100, 110]:
     ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
     registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
-    np.save('dfv_01.npy', dfv)
+    #np.save('dfv_01.npy', dfv)
 
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
@@ -44,9 +44,10 @@ for i in [0, 10, 20, 30, 100, 110]:
     general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image,ImpReg.network )
     
     #general.clean_memory()
-'''
+
 
 #------------------------------------------------------------------------------------
+'''
 #RFMID
 data_dir = os.path.join(current_directory, 'data', 'RFMID')
 out_dir = os.path.join(current_directory, 'out/', 'RFMID/')
@@ -78,7 +79,7 @@ for i in range(1, 2):
     #general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy(), ImpReg.save_folder)
     general.test_RFMID(dfv, matrix, kwargs["image_shape"], registered_img, mask)
     general.clean_memory()
-
+'''
 #------------------------------------------------------------------------------------
 '''
 #IDIR
