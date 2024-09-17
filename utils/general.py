@@ -325,6 +325,8 @@ def simple_bilinear_interpolation_point(dfv, x, y, scale):
     P = (1 - y_frac) * R1 + y_frac * R2
 
     return P
+
+
 def load_image_RFMID(folder):
 
     data = np.load(folder)
@@ -418,11 +420,12 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     axes[1].set_title('Moving Image')    
     
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
-    mapx = mapx - 0
-    mapy = mapy - 0
-    
     dfs = np.stack([mapy, mapx], axis=2)
-    dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
+    
+    #mapx = mapx - 0.5
+    #mapy = mapy - 0
+    #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
+    #dfv = np.stack([mapy, mapx], axis=2)
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
     tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 1]), torch.from_numpy(dfv[:, 0])) ## no pasa nada x cambiarle el orden a los indices del dfv?¿
@@ -447,9 +450,9 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
             
-        #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
-        #oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
+        oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        #dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
         #dx = ox + (ox-dx)
         #dy = oy + (oy-dy)
