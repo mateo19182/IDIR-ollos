@@ -293,25 +293,38 @@ def bilinear_interpolation(input_array, x_indices, y_indices):
     return output
 
 def simple_bilinear_interpolation_point(dfv, x, y, scale):
+    # Scale the coordinates
+    x_scaled = x * scale
+    y_scaled = y * scale
 
-    x0, y0 = int(np.round(x * scale)), int(np.round(y * scale))
-    x1, y1 = x0 + 1, y0 + 1
+    # Get the integer parts
+    x0 = int(np.floor(x_scaled))
+    x1 = x0 + 1
+    y0 = int(np.floor(y_scaled))
+    y1 = y0 + 1
 
-    x0 = np.clip(x0, 0, dfv.shape[0] - 1)
-    y0 = np.clip(y0, 0, dfv.shape[1] - 1)
-    x1 = np.clip(x1, 0, dfv.shape[0] - 1)
-    y1 = np.clip(y1, 0, dfv.shape[1] - 1)
+    # Ensure the indices are within bounds
+    x0 = np.clip(x0, 0, dfv.shape[1] - 1)
+    x1 = np.clip(x1, 0, dfv.shape[1] - 1)
+    y0 = np.clip(y0, 0, dfv.shape[0] - 1)
+    y1 = np.clip(y1, 0, dfv.shape[0] - 1)
 
-    wx, wy = x * scale - x0, y * scale - y0
+    # Get the fractional parts
+    x_frac = x_scaled - x0
+    y_frac = y_scaled - y0
 
-    f00, f10 = dfv[x0, y0], dfv[x1, y0]
-    f01, f11 = dfv[x0, y1], dfv[x1, y1]
+    # Get the values at the four surrounding points
+    Q11 = dfv[y0, x0]
+    Q21 = dfv[y0, x1]
+    Q12 = dfv[y1, x0]
+    Q22 = dfv[y1, x1]
 
-    dx = (1 - wx) * ((1 - wy) * f00[0] + wy * f01[0]) + wx * ((1 - wy) * f10[0] + wy * f11[0])
-    dy = (1 - wx) * ((1 - wy) * f00[1] + wy * f01[1]) + wx * ((1 - wy) * f10[1] + wy * f11[1])
+    # Perform bilinear interpolation
+    R1 = (1 - x_frac) * Q11 + x_frac * Q21
+    R2 = (1 - x_frac) * Q12 + x_frac * Q22
+    P = (1 - y_frac) * R1 + y_frac * R2
 
-    return dx, dy
-    
+    return P
 def load_image_RFMID(folder):
 
     data = np.load(folder)
@@ -404,14 +417,17 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     axes[1].imshow(moving_image, cmap='gray')
     axes[1].set_title('Moving Image')    
     
-    #mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
-    #dfv = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[0], 2))
+    mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
+    mapx = mapx - 0
+    mapy = mapy - 0
+    
+    dfs = np.stack([mapy, mapx], axis=2)
+    dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
-    dfv = torch.from_numpy(dfv)
-    tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
+    tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 1]), torch.from_numpy(dfv[:, 0])) ## no pasa nada x cambiarle el orden a los indices del dfv?¿
     tr1 = tr1.reshape(vol_shape).numpy()
-    
+
     img = cv2.resize(img, (2912, 2912))
 
     axes[2].imshow(img, cmap='gray')
@@ -430,13 +446,16 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
 
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
+            
+        #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
+        #oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
-        dx, dy = dfv[int(np.round(x*scale)), int(np.round(y*scale)), :]
-        
-        #dx, dy = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        #dx = ox + (ox-dx)
+        #dy = oy + (oy-dy)
 
-        x_res= (dx  + 1 ) * (2912 -1) * 0.5
-        y_res= (dy  + 1 ) * (2912 -1) * 0.5
+        x_res= (dx  + 1 ) * (2912 - 1) * 0.5
+        y_res= (dy  + 1 ) * (2912 - 1) * 0.5
 
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
@@ -469,7 +488,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.title('Success Rate vs Threshold')
     plt.ylim([0, 1]) 
     fig_path = os.path.join(save_path, 'eval.png')
-    plt.savefig(fig_path, format='png')
+    #plt.savefig(fig_path, format='png')
     return dists
 
 def test_RFMID(dfv, matrix, shape, img, mask):
@@ -485,7 +504,6 @@ def test_RFMID(dfv, matrix, shape, img, mask):
     min_distance = 50 
     points = []
     plt.imshow(img, cmap='gray') 
-
     for _ in range(10):
         while True:
             x = np.random.randint(0, width)

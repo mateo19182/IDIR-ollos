@@ -3,6 +3,7 @@ import imageio.v2 as imageio
 from matplotlib import pyplot as plt
 from utils import general
 from models import models
+import torch
 import numpy as np
 
 current_directory = os.getcwd()
@@ -16,14 +17,14 @@ saved_images_names = []
 mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
 fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
 #for i in range(0, 5):
-for i in [30]:# , 10, 20, 30, 100, 110]:
+for i in [0 , 10, 20, 30, 100, 110]:
     (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 2500    #2500
+    kwargs["epochs"] = 1000    #2500
     kwargs["batch_size"] = 10000   #10000
-    kwargs["image_shape"] = [1500, 1500]
+    kwargs["image_shape"] = [2000, 2000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
