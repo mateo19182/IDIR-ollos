@@ -452,10 +452,10 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
             
         dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        #dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
-        #dx = ox + (ox-dx)
-        #dy = oy + (oy-dy)
+        dx = ox + (ox-dx)
+        dy = oy + (oy-dy)
 
         x_res= (dx  + 1 ) * (2912 - 1) * 0.5
         y_res= (dy  + 1 ) * (2912 - 1) * 0.5
