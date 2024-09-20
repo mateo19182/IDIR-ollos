@@ -422,16 +422,18 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
     dfs = np.stack([mapy, mapx], axis=2)
     
-    #mapx = mapx - 0.5
-    #mapy = mapy - 0
+    mapx = mapx - 0.2
+    mapy = mapy - 0.1
     #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     #dfv = np.stack([mapy, mapx], axis=2)
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
-    tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 1]), torch.from_numpy(dfv[:, 0])) ## no pasa nada x cambiarle el orden a los indices del dfv?¿
+    
+    tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    
     tr1 = tr1.reshape(vol_shape).numpy()
-
-    img = cv2.resize(img, (2912, 2912))
+    img = cv2.resize(img.reshape(vol_shape).numpy(), (2912, 2912))
 
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
@@ -452,7 +454,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
             
         dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        #dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
         dx = ox + (ox-dx)
         dy = oy + (oy-dy)

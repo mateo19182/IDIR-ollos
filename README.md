@@ -1,9 +1,4 @@
-# To Do
-
-FIRE(naturales): 18(low overlap), 19, (medium overlap)
-RFMID(simuladas): 558, 559
 out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
-
 
 find . -type d -exec bash -c 'count=$(find "{}" -type f | wc -l); [ $count -lt 4 ] && rm -rf "{}"' \;
 
