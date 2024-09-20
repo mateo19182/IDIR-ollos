@@ -7,6 +7,8 @@ import torch
 import numpy as np
 
 current_directory = os.getcwd()
+
+'''
 #FIRE
 
 data_dir = os.path.join(current_directory, 'data', 'FIRE')
@@ -22,7 +24,7 @@ for i in [0 , 10, 20, 30, 100, 110]:
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 3000    #2500
+    kwargs["epochs"] = 2000    #2500
     kwargs["batch_size"] = 20000   #10000
     kwargs["image_shape"] = [2000, 2000]
     kwargs["hyper_regularization"] = False
@@ -42,45 +44,48 @@ for i in [0 , 10, 20, 30, 100, 110]:
     images = [fixed_image, moving_image, registered_img, moving_mask] 
     image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
     #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
-    general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image,ImpReg.network )
+    general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image)
     
     #general.clean_memory()
 
-
-#------------------------------------------------------------------------------------
 '''
+#------------------------------------------------------------------------------------
 #RFMID
-data_dir = os.path.join(current_directory, 'data', 'RFMID')
+data_dir = os.path.join(current_directory, 'data/', 'RFMID')
 out_dir = os.path.join(current_directory, 'out/', 'RFMID/')
 
 saved_images = []
 saved_images_names = []
-for i in range(1, 2): 
-    (og_img, geo_img, clr_img, full_img, mask, geo_mask, original, matrix) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
+for i in [1]: 
+    (fixed_image, moving_image, clr_img, full_img, fixed_mask, moving_mask, matrix) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 0
-    kwargs["batch_size"] = 50000
+    kwargs["epochs"] = 0    #2500
+    kwargs["batch_size"] = 20000   #10000
     kwargs["image_shape"] = [1000, 1000]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
     kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
-    kwargs["mask"] = mask
+    kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
 
-    ImpReg = models.ImplicitRegistrator2d(geo_img, og_img, **kwargs)
+    #dfv = np.load('dfv_01.npy')
+    ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
     ImpReg.fit()
     registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
+    #np.save('dfv_01.npy', dfv)
 
-    images = [og_img, geo_img, registered_img, geo_mask] 
-    image_names = ['Original Image', 'Geometric Image', 'transform Image', 'geo_mask Image']
-    #general.display_dfv(registered_img, dfv, og_img.numpy(), geo_img.numpy(), ImpReg.save_folder)
-    general.test_RFMID(dfv, matrix, kwargs["image_shape"], registered_img, mask)
-    general.clean_memory()
-'''
+    images = [fixed_image, moving_image, registered_img, moving_mask] 
+    image_names = ['fixed_image', 'moving_image', 'transform Image', 'geo_mask Image']
+    #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
+    general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask)
+    
+    #general.clean_memory()
+
+
 #------------------------------------------------------------------------------------
 '''
 #IDIR

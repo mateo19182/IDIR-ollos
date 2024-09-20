@@ -326,12 +326,10 @@ def simple_bilinear_interpolation_point(dfv, x, y, scale):
 
     return P
 
-
 def load_image_RFMID(folder):
 
     data = np.load(folder)
     og_img = data['og_img'] #imaxe orixinal
-    original = data['og_img'] #imaxe orixinal
     geo_img = data['geo_img'] #imaxe cunha transformación xeométrica aleatoria (dentro duns parámetros)
     clr_img = data['clr_img'] #imaxe cunha transformación de cor aleatoria (dentro duns parámetros)
     full_img = data['full_img'] #imaxe coas dúas transformacións aplicadas
@@ -358,7 +356,6 @@ def load_image_RFMID(folder):
         full_img,
         mask,
         geo_mask,
-        original, 
         matrix
     )
 
@@ -407,7 +404,7 @@ def load_image_FIRE(index, folder):
         grayscale_images[1]
     )
 
-def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image, net):
+def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image):
     scale = vol_shape[0]/2912
     dists = []
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
@@ -422,8 +419,8 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
     dfs = np.stack([mapy, mapx], axis=2)
     
-    mapx = mapx - 0.2
-    mapy = mapy - 0.1
+    #mapx = mapx - 0.2
+    #mapy = mapy - 0.1
     #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     #dfv = np.stack([mapy, mapx], axis=2)
 
@@ -433,6 +430,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     
     tr1 = tr1.reshape(vol_shape).numpy()
+
     img = cv2.resize(img.reshape(vol_shape).numpy(), (2912, 2912))
 
     axes[2].imshow(img, cmap='gray')
@@ -454,7 +452,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
             
         dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        #dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
         dx = ox + (ox-dx)
         dy = oy + (oy-dy)
@@ -470,8 +468,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
         axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
         dists.append(dist)
-
-    
+ 
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
             f.write("%s\n" % item)
@@ -496,42 +493,109 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     #plt.savefig(fig_path, format='png')
     return dists
 
-def test_RFMID(dfv, matrix, shape, img, mask):
-    # TODO: cambiar a puntos fijos, grid dentro de mask, aleatorios es mal si no hay muchos ejemplos...
-    height, width = shape
-    dfv=dfv.reshape((shape[0], shape[1], 2))
-    scale = shape[0]/mask.shape[0]
-    matrix = matrix*scale #??
-
-    #mask = zoom(mask, (scale, scale))
-    #mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image, mask):
+    scale = vol_shape[0]/2912
     dists = []
-    min_distance = 50 
-    points = []
-    plt.imshow(img, cmap='gray') 
-    for _ in range(10):
-        while True:
-            x = np.random.randint(0, width)
-            y = np.random.randint(0, height)
-            if mask[y, x]: 
-                if not points or all(np.sqrt((x - x0)**2 + (y - y0)**2) >= min_distance for x0, y0 in points):
-                    points.append((x, y))
-                    break
-        x_t, y_t = scale * dfv[round(x), round(y)]
-        x_res, y_res = (x_t*x) + x, (y_t*y) + y
-        
-        #point = cv2.transform(point, matrix)
-        points_t = np.expand_dims(np.expand_dims(np.array([x, y]), axis=0), axis=0)
-        points_t = kn.transform_points(torch.from_numpy(matrix).double(), torch.from_numpy(points_t).double())
+    print(matrix.shape)
+    thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
+    success_rates = []
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5))
+    axes[0].imshow(fixed_image, cmap='gray')
+    axes[0].set_title('Fixed Image')
 
-        x_truth, y_truth = points_t[0][0][0], points_t[0][0][1]
-        plt.scatter([x, x_res, x_truth], [y, y_res, y_truth], color=['b', 'r', 'g'], s=5)
+    axes[1].imshow(moving_image, cmap='gray')
+    axes[1].set_title('Moving Image')    
+    
+    mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
+    dfs = np.stack([mapy, mapx], axis=2)
+    
+    #mapx = mapx - 0.2
+    #mapy = mapy - 0.1
+    #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
+    #dfv = np.stack([mapy, mapx], axis=2)
+
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
+    
+    tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    
+    tr1 = tr1.reshape(vol_shape).numpy()
+
+    img = img.reshape(vol_shape).numpy()
+
+    axes[2].imshow(img, cmap='gray')
+    axes[2].set_title('Registered Image')
+    axes[3].imshow(tr1, cmap='gray')
+    axes[3].set_title('grid')
+
+    #print(dfv.shape) #(2250000, 2)
+    dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
+
+    x, y = np.meshgrid(np.arange(0, vol_shape[1], 100), np.arange(0, vol_shape[0], 10))
+    xy_points = np.column_stack((x.ravel(), y.ravel()))
+
+    mask_indices = np.column_stack(np.where(mask))
+    filtered_points = xy_points[np.all(np.isin(xy_points, mask_indices), axis=1)]
+    print(len(filtered_points))
+    ground_truth = []
+    for points in filtered_points:
+        y, x, _ = simple_bilinear_interpolation_point(matrix, points[1], points[0], scale)
+        print(x, y)
+        ground_truth.append([points[1], points[0], x, y])
+
+    print(ground_truth)
+
+    for points in ground_truth:
+        x= float(points[0])
+        y=float(points[1])
+        x_truth = float(points[2])
+        y_truth = float(points[3])     
+
+        axes[0].scatter(x, y, c='w', s=2)  # Moving image points
+        axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
+            
+        dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
+        oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+
+        dx = ox + (ox-dx)
+        dy = oy + (oy-dy)
+
+        x_res= (dx  + 1 ) * (2912 - 1) * 0.5
+        y_res= (dy  + 1 ) * (2912 - 1) * 0.5
+
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
+        axes[2].scatter(x, y, c='w', s=1) 
+        axes[2].scatter(x_truth, y_truth, c='g', s=1) 
+        axes[2].scatter(x_res, y_res, c='b', s=1)  
+        axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
+        axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
         dists.append(dist)
-        print("Distance: ", dist)
-    #plt.savefig('points_rfmid.png', format='png')
-    return np.mean(dists) 
+ 
+    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+        for item in dists:
+            f.write("%s\n" % item)
+        f.write("Mean: %s\n" % np.mean(dists))
+
+    for threshold in thresholds:
+        res = 0
+        for dist in dists:
+            if dist < threshold:
+                res+=1
+        success_rates.append(res/len(dists))
+    print("Mean: ", np.mean(dists))
+    fig_path = os.path.join(save_path, 'plot.png')
+    plt.savefig(fig_path, format='png')
+    plt.figure()
+    plt.plot(thresholds, success_rates)
+    plt.xlabel('Threshold')
+    plt.ylabel('Success Rate')
+    plt.title('Success Rate vs Threshold')
+    plt.ylim([0, 1]) 
+    fig_path = os.path.join(save_path, 'eval.png')
+    #plt.savefig(fig_path, format='png')
+    return dists
 
 def block_average(arr, block_size):
     shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
