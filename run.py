@@ -56,14 +56,18 @@ out_dir = os.path.join(current_directory, 'out/', 'RFMID/')
 
 saved_images = []
 saved_images_names = []
-for i in [1]: 
-    (fixed_image, moving_image, clr_img, full_img, fixed_mask, moving_mask, matrix) = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
+for i in range(1, 5): 
+    result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
+    if result is None:
+        continue
+    else:
+        (fixed_image, moving_image, clr_img, full_img, fixed_mask, moving_mask, matrix) = result
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 0    #2500
+    kwargs["epochs"] = 2000    #2500
     kwargs["batch_size"] = 20000   #10000
-    kwargs["image_shape"] = [1000, 1000]
+    kwargs["image_shape"] = [1500, 1500]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
@@ -83,7 +87,7 @@ for i in [1]:
     #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
     general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask)
     
-    #general.clean_memory()
+    general.clean_memory()
 
 
 #------------------------------------------------------------------------------------

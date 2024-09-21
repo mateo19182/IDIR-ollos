@@ -326,8 +326,18 @@ def simple_bilinear_interpolation_point(dfv, x, y, scale):
 
     return P
 
-def load_image_RFMID(folder):
+def transform_point(x, y, transformation_matrix):
+    # Create a homogeneous coordinate vector
+    point = np.array([x, y, 1])
+    # Perform the matrix multiplication
+    transformed_point = np.dot(transformation_matrix[0], point)
+    # Extract the x and y coordinates (discarding the homogeneous coordinate)
+    new_x, new_y = transformed_point[:2]
+    return new_x, new_y
 
+def load_image_RFMID(folder):
+    if not os.path.exists(folder):
+        return None
     data = np.load(folder)
     og_img = data['og_img'] #imaxe orixinal
     geo_img = data['geo_img'] #imaxe cunha transformación xeométrica aleatoria (dentro duns parámetros)
@@ -450,8 +460,9 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
             
-        dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
+        #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        #oy, ox = simple_bilinear_interpolation_point(dfs, x, y, scale)
         dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
         dx = ox + (ox-dx)
@@ -494,9 +505,9 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     return dists
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image, mask):
-    scale = vol_shape[0]/2912
+    scale = vol_shape[0]/mask.shape[0]
     dists = []
-    print(matrix.shape)
+    print(matrix)
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
@@ -514,14 +525,14 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     #dfv = np.stack([mapy, mapx], axis=2)
 
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((mask.shape[0], mask.shape[1]), spacing=64, thickness=3))
     
     tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     
     tr1 = tr1.reshape(vol_shape).numpy()
 
-    img = img.reshape(vol_shape).numpy()
+    img = cv2.resize(img.reshape(vol_shape).numpy(), (mask.shape[0], mask.shape[1]))
 
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
@@ -531,17 +542,14 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     #print(dfv.shape) #(2250000, 2)
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
-    x, y = np.meshgrid(np.arange(0, vol_shape[1], 100), np.arange(0, vol_shape[0], 10))
+    x, y = np.meshgrid(np.arange(500, mask.shape[0]-500, 100), np.arange(500, mask.shape[1]-500, 100))
     xy_points = np.column_stack((x.ravel(), y.ravel()))
 
-    mask_indices = np.column_stack(np.where(mask))
-    filtered_points = xy_points[np.all(np.isin(xy_points, mask_indices), axis=1)]
-    print(len(filtered_points))
     ground_truth = []
-    for points in filtered_points:
-        y, x, _ = simple_bilinear_interpolation_point(matrix, points[1], points[0], scale)
-        print(x, y)
-        ground_truth.append([points[1], points[0], x, y])
+    for points in xy_points:
+        if mask[points[0], points[1]]:
+            x, y= transform_point( points[0], points[1], matrix)
+            ground_truth.append([points[0], points[1], x, y])
 
     print(ground_truth)
 
@@ -554,22 +562,20 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
         axes[0].scatter(x, y, c='w', s=2)  # Moving image points
         axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
             
-        dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
-        oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
-
-        dx = ox + (ox-dx)
-        dy = oy + (oy-dy)
-
-        x_res= (dx  + 1 ) * (2912 - 1) * 0.5
-        y_res= (dy  + 1 ) * (2912 - 1) * 0.5
+        #oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        #dx = ox + (ox-dx)
+        #dy = oy + (oy-dy)
+        x_res= (dx  + 1 ) * (mask.shape[0] - 1) * 0.5
+        y_res= (dy  + 1 ) * (mask.shape[1] - 1) * 0.5
 
         print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
         axes[2].scatter(x_res, y_res, c='b', s=1)  
-        axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
+        #axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
         axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
         dists.append(dist)
  
