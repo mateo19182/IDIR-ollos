@@ -518,17 +518,20 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     axes[1].set_title('Moving Image')    
     
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
-    dfs = np.stack([mapy, mapx], axis=2)
+    dfs = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     
     #mapx = mapx - 0.2
     #mapy = mapy - 0.1
-    #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
+    #dfm = np.stack([mapy, mapx], axis=2)
     #dfv = np.stack([mapy, mapx], axis=2)
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((mask.shape[0], mask.shape[1]), spacing=64, thickness=3))
     
-    tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
-    img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    dfv_inv_x = dfs[:, 0] - (dfv[:, 0] - dfs[:, 0])
+    dfv_inv_y = dfs[:, 1] - (dfv[:, 1] - dfs[:, 1])
+
+    tr1 = bilinear_interpolation(grid, torch.from_numpy(dfv_inv_x), torch.from_numpy(dfv_inv_y))
+    img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv_inv_x), torch.from_numpy(dfv_inv_y))
     
     tr1 = tr1.reshape(vol_shape).numpy()
 
@@ -539,10 +542,9 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     axes[3].imshow(tr1, cmap='gray')
     axes[3].set_title('grid')
 
-    #print(dfv.shape) #(2250000, 2)
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
-    x, y = np.meshgrid(np.arange(500, mask.shape[0]-500, 100), np.arange(500, mask.shape[1]-500, 100))
+    x, y = np.meshgrid(np.arange(50, mask.shape[0]-50, 150), np.arange(50, mask.shape[1]-50, 150))
     xy_points = np.column_stack((x.ravel(), y.ravel()))
 
     ground_truth = []

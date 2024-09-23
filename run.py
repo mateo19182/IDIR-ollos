@@ -56,7 +56,7 @@ out_dir = os.path.join(current_directory, 'out/', 'RFMID/')
 
 saved_images = []
 saved_images_names = []
-for i in range(1, 5): 
+for i in range(1, 50): 
     result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
     if result is None:
         continue
@@ -65,9 +65,9 @@ for i in range(1, 5):
     kwargs = {}
     kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
     kwargs["lr"] = 0.00001
-    kwargs["epochs"] = 2000    #2500
+    kwargs["epochs"] = 2500   #2500
     kwargs["batch_size"] = 20000   #10000
-    kwargs["image_shape"] = [1500, 1500]
+    kwargs["image_shape"] = [1708, 1708]
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
