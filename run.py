@@ -71,7 +71,7 @@ for i in range(1, 50):
     kwargs["hyper_regularization"] = False
     kwargs["jacobian_regularization"] = False
     kwargs["bending_regularization"] = True
-    kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+    kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
     kwargs["save_folder"]= out_dir + str(i) + '-' + kwargs["network_type"] + '-' + kwargs["loss_function"] + '-' + str(kwargs["lr"]) + '-' + str(kwargs["epochs"]) + '-' + str(kwargs["batch_size"])
     kwargs["mask"] = fixed_mask
     kwargs["save_checkpoints"] = False
