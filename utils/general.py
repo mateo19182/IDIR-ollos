@@ -7,7 +7,7 @@ import kornia.geometry.linalg as kn
 import cv2
 import SimpleITK as sitk
 import pystrum
-from sklearn .metrics import roc_auc_score
+from scipy import integrate
 
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
@@ -210,6 +210,15 @@ def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
 
 #----------------------------------------------------------------------
 
+def create_unique_dir(base_dir):
+    suffix = 0
+    while True:
+        dir_name = f"{base_dir}{f'_{suffix}' if suffix else ''}"
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+            return dir_name
+        suffix += 1
+
 def display_images(images, image_names, cmap='color'):
     n = len(images)
     cols = 4
@@ -369,32 +378,19 @@ def load_image_RFMID(folder):
         matrix
     )
 
-def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
-    epochs_range = range(1, epochs + 1)
-    plt.figure(figsize=(10, 6))
-    plt.plot(epochs_range, data_loss_list, label='Data Loss',  linestyle='-', color='blue')
-    plt.plot(epochs_range, total_loss_list, label='Total Loss',  linestyle='--', color='red')
-    plt.title('Loss Curves over Epochs')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(True)
-    #plt.show()
-    plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
-
 def load_image_FIRE(index, folder):
     images_folder = os.path.join(folder, 'Images')
     files = os.listdir(images_folder)
     files.sort()
     fixed_image = imageio.imread(os.path.join(images_folder, files[index*2]))
     moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
-    print(os.path.join(images_folder, files[index*2]))
+    #print(os.path.join(images_folder, files[index*2]))
 
     ground_folder = os.path.join(folder, 'Ground Truth')
     files = os.listdir(ground_folder)
     files.sort()
     ground_truth = []
-    print(os.path.join(ground_folder, files[index]))
+    #print(os.path.join(ground_folder, files[index]))
     with open(os.path.join(ground_folder, files[index]), 'r') as f:
         for line in f:
             line = line.strip().split()
@@ -413,6 +409,42 @@ def load_image_FIRE(index, folder):
         grayscale_images[0], 
         grayscale_images[1]
     )
+
+def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
+    epochs_range = range(1, epochs + 1)
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs_range, data_loss_list, label='Data Loss',  linestyle='-', color='blue')
+    plt.plot(epochs_range, total_loss_list, label='Total Loss',  linestyle='--', color='red')
+    plt.title('Loss Curves over Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    #plt.show()
+    plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
+
+def calculate_metrics(thresholds, success_rates, dists, save_path):
+    # Calculate AUC
+    auc = integrate.trapezoid(success_rates, thresholds)
+    
+    threshold_90 = None
+    for threshold, rate in zip(thresholds, success_rates):
+        if rate >= 0.9:
+            threshold_90 = threshold
+            break
+
+    mean_dist = np.mean(dists)
+    
+    metrics = os.path.join(save_path, 'metrics.txt')
+    with open(metrics, 'w') as f:
+        f.write(f"Mean Distance: {mean_dist:.4f}\n")
+        f.write(f"Area Under the Curve (AUC): {auc:.4f}\n")
+        if threshold_90 is not None:
+            f.write(f"Threshold for 90% success rate: {threshold_90:.4f}\n")
+        else:
+            f.write("Threshold for 90% success rate: Not achieved\n")
+   
+    return [auc, mean_dist]
 
 def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image):
     scale = vol_shape[0]/2912
@@ -471,7 +503,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
         x_res= (dx  + 1 ) * (2912 - 1) * 0.5
         y_res= (dy  + 1 ) * (2912 - 1) * 0.5
 
-        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
@@ -491,7 +523,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
             if dist < threshold:
                 res+=1
         success_rates.append(res/len(dists))
-    print("Mean: ", np.mean(dists))
+
     fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
     plt.figure()
@@ -502,12 +534,11 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.ylim([0, 1]) 
     fig_path = os.path.join(save_path, 'eval.png')
     #plt.savefig(fig_path, format='png')
-    return dists
+    return calculate_metrics(thresholds, success_rates, dists, save_path)
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image, mask):
     scale = vol_shape[0]/mask.shape[0]
     dists = []
-    print(matrix)
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
@@ -517,6 +548,11 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     axes[1].imshow(moving_image, cmap='gray')
     axes[1].set_title('Moving Image')    
     
+    # if np.array_equal(img, fixed_image.numpy()):
+    #     print("The images are the same.")
+    # else:
+    #     print("The images are different.")
+
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
     dfs = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     
@@ -525,7 +561,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     #dfm = np.stack([mapy, mapx], axis=2)
     #dfv = np.stack([mapy, mapx], axis=2)
 
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((mask.shape[0], mask.shape[1]), spacing=64, thickness=3))
+    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((vol_shape[0], vol_shape[1]), spacing=64, thickness=3))
     
     dfv_inv_x = dfs[:, 0] - (dfv[:, 0] - dfs[:, 0])
     dfv_inv_y = dfs[:, 1] - (dfv[:, 1] - dfs[:, 1])
@@ -544,7 +580,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
 
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
-    x, y = np.meshgrid(np.arange(50, mask.shape[0]-50, 150), np.arange(50, mask.shape[1]-50, 150))
+    x, y = np.meshgrid(np.arange(0, mask.shape[0], 50), np.arange(0, mask.shape[1], 50))
     xy_points = np.column_stack((x.ravel(), y.ravel()))
 
     ground_truth = []
@@ -553,7 +589,6 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
             x, y= transform_point( points[0], points[1], matrix)
             ground_truth.append([points[0], points[1], x, y])
 
-    print(ground_truth)
 
     for points in ground_truth:
         x= float(points[0])
@@ -572,7 +607,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
         x_res= (dx  + 1 ) * (mask.shape[0] - 1) * 0.5
         y_res= (dy  + 1 ) * (mask.shape[1] - 1) * 0.5
 
-        print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
+        #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
@@ -584,7 +619,6 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     with open(os.path.join(save_path,'dists.txt'), 'w') as f:
         for item in dists:
             f.write("%s\n" % item)
-        f.write("Mean: %s\n" % np.mean(dists))
 
     for threshold in thresholds:
         res = 0
@@ -592,7 +626,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
             if dist < threshold:
                 res+=1
         success_rates.append(res/len(dists))
-    print("Mean: ", np.mean(dists))
+
     fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
     plt.figure()
@@ -602,90 +636,9 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image
     plt.title('Success Rate vs Threshold')
     plt.ylim([0, 1]) 
     fig_path = os.path.join(save_path, 'eval.png')
-    #plt.savefig(fig_path, format='png')
-    return dists
-
-def block_average(arr, block_size):
-    shape = (arr.shape[0] // block_size, arr.shape[1] // block_size)
-    return arr.reshape(shape[0], block_size, shape[1], block_size).mean(axis=(1,3))
-
-def display_dfv(image, dfv, fixed_image, moving_image, save_path):
-    vol_shape = image.shape
-    y, x = np.mgrid[0:image.shape[0], 0:image.shape[1]]
-
-    u = dfv[:, 0].reshape(image.shape)
-    v = dfv[:, 1].reshape(image.shape)
-    '''
-    M = np.hypot(u, v)
-    angles = np.arctan2(v, u)
-
-    skip_factor = 20
-    skip = (slice(None, None, skip_factor), slice(None, None, skip_factor))
-
-    u_avg = block_average(u, skip_factor)
-    v_avg = block_average(v, skip_factor)
-    M_avg = np.hypot(u_avg, v_avg)
-    angles_avg = np.arctan2(v_avg, u_avg)
-
-    x_avg = block_average(x, skip_factor)
-    y_avg = block_average(y, skip_factor)
-    '''
-    fig, axs = plt.subplots(1, 4, figsize=(20, 5)) 
-
-    """
-    axs[0].set_xlim([-100, 3000])
-    axs[0].set_ylim([-100, 3000])
-
-    axs[1].set_xlim([-100, 3000])
-    axs[1].set_ylim([-100, 3000])
-
-
-    axs[2].set_xlim([-100, 1100])
-    axs[2].set_ylim([-100, 1100])
-    axs[3].set_xlim([-100, 1100])
-    axs[3].set_ylim([-100, 1100])
-    """
-    
-    axs[0].imshow((fixed_image), cmap='gray')
-    axs[0].set_title('Fixed Image')
-
-    axs[1].imshow((moving_image), cmap='gray')
-    axs[1].set_title('Moving Image')
-    #color= 'red'
-
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid(vol_shape, spacing=24, thickness=1))
-    dfv = torch.from_numpy(dfv)
-
-    tr1 = bilinear_interpolation(grid, dfv[:, 0], dfv[:, 1])
-
-    tr1 = tr1.reshape(vol_shape).numpy()
-
-    axs[2].imshow((tr1), cmap='gray')
-    axs[2].set_title('grid deformation')
-
-    axs[3].imshow((image), cmap='gray')
-    #quiver = axs[3].quiver(x_avg, y_avg, -u_avg, -v_avg, angles_avg, cmap='hsv')
-    #quiver = axs[3].quiver(x[skip], y[skip], u[skip], -v[skip],angles[skip], cmap='hsv')
-    #quiver = axs[3].quiver(x[skip], y[skip], u[skip], v[skip],M[skip], cmap='jet')
-    #cbar = fig.colorbar(quiver, ax=axs[3], orientation='vertical', fraction=0.046, pad=0.04)
-    #cbar.set_label('Direction')
-    #cbar.set_ticks([-np.pi, 0, np.pi])
-    #plt.text(0.1, 0.5, """0: Red (rightward),π/2: Cyan or Green (upward), π: Blue (leftward), -π/2: Magenta or Yellow (downward) """, fontsize=12)
-
-    plt.tight_layout()
-    plt.show()
-    
-    # Save the figure in the specified save_path
-    fig_path = os.path.join(save_path, 'plot2.png')
     plt.savefig(fig_path, format='png')
-    print(f"Figure saved at: {fig_path}")
-    
-    #ne.plot.flow([dfv.reshape([500, 500, 2])], width=0.5, scale=0.01, titles=['Deformation Field'])
 
-    # 0 radians (0 degrees): Red (rightward)
-    # π/2 radians (90 degrees): Cyan or Green (upward)
-    # π radians (180 degrees): Blue (leftward)
-    # 3π/2 radians (270 degrees): Magenta or Yellow (downward)
+    return calculate_metrics(thresholds, success_rates, dists, save_path)
 
 def clean_memory():
     torch.cuda.empty_cache()
