@@ -254,6 +254,8 @@ class ImplicitRegistrator:
         # Inherit default arguments from standard learning model
         self.args = {}
 
+        self.args["patience"] = 50
+        self.args["min_delta"] = 1e-6
         # Define the value of arguments
         self.args["mask"] = None
         self.args["mask_2"] = None
@@ -452,6 +454,11 @@ class ImplicitRegistrator2d:
 
         # Check if all kwargs keys are valid (this checks for typos)
         assert all(kwarg in self.args.keys() for kwarg in kwargs)
+
+        self.patience = kwargs.get('patience', 50)  # Number of epochs to wait for improvement
+        self.min_delta = kwargs.get('min_delta', 1e-4)  # Minimum change in loss to qualify as an improvement
+        self.best_loss = float('inf')
+        self.counter = 0
 
         # Parse important argument from kwargs
         self.epochs = kwargs["epochs"] if "epochs" in kwargs else self.args["epochs"]
@@ -665,6 +672,8 @@ class ImplicitRegistrator2d:
         # Inherit default arguments from standard learning model
         self.args = {}
 
+        self.args["patience"] = 50
+        self.args["min_delta"] = 1e-5
         # Define the value of arguments
         self.args["mask"] = None
         self.args["mask_2"] = None
@@ -829,9 +838,21 @@ class ImplicitRegistrator2d:
                     path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
                     torch.save(self.network.state_dict(), path)
             self.training_iteration(i)
+            current_loss = self.loss_list[i]
+            if current_loss < self.best_loss - self.min_delta:
+                self.best_loss = current_loss
+                self.counter = 0
+            else:
+                self.counter += 1
+                if self.counter >= self.patience:
+                    print(f"Early stopping triggered at epoch {i}")
+                    break
 
         with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
+            if(self.counter >= self.patience):
+                f.write(f"Early stopping triggered at epoch {i}\n")
             for item in self.loss_list:
                 f.write("%s\n" % item)
+            
 
         #general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs, self.save_folder)

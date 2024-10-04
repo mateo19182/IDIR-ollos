@@ -444,12 +444,12 @@ def calculate_metrics(thresholds, success_rates, dists, save_path):
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
    
-    return [auc, mean_dist]
+    return [auc, mean_dist, success_rates]
 
 def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_image):
     scale = vol_shape[0]/2912
     dists = []
-    thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
+    thresholds = np.arange(0, 25, 0.1)  # 0.1 to 25.0 in steps of 0.1
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
     axes[0].imshow(fixed_image, cmap='gray')
@@ -533,7 +533,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, img, fixed_image, moving_
     plt.title('Success Rate vs Threshold')
     plt.ylim([0, 1]) 
     fig_path = os.path.join(save_path, 'eval.png')
-    #plt.savefig(fig_path, format='png')
+    plt.savefig(fig_path, format='png')
     return calculate_metrics(thresholds, success_rates, dists, save_path)
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, img, fixed_image, moving_image, mask):

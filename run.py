@@ -1,6 +1,7 @@
 import os
 import imageio.v2 as imageio
 from matplotlib import pyplot as plt
+from scipy import integrate
 from utils import general
 from models import models
 import torch
@@ -9,14 +10,15 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "FIRE"  # "FIRE", "RFMID"
+TARGET = "RFMID"  # "FIRE", "RFMID"
 
 kwargs = {}
 kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
 kwargs["lr"] = 0.00001
-kwargs["epochs"] = 0    #2500
+kwargs["epochs"] = 3000    #2500
 kwargs["batch_size"] = 20000   #10000
-kwargs["image_shape"] = [2000, 2000]
+kwargs["patience"] = 500
+kwargs["image_shape"] = [2000, 2000]    #RFMID fails on < 1712, also weird plots...
 kwargs["hyper_regularization"] = False
 kwargs["jacobian_regularization"] = False
 kwargs["bending_regularization"] = True
@@ -67,15 +69,32 @@ elif TARGET == "RFMID":
         results.append(general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask))
         #general.clean_memory()
 
+# Separate results into individual lists
+auc_list = [result[0] for result in results]
+mean_distance_list = [result[1] for result in results]
+success_rates = np.array([result[2] for result in results])
+thresholds = np.arange(0, 25, 0.1)  # 0.1 to 25.0 in steps of 0.1
+mean_success_rates = np.mean(success_rates, axis=0)
+
 with open(os.path.join(out_dir, 'results.txt'), 'w') as f:
     f.write(f"auc, mean_distance\n")
     for result in results:
-        f.write(f"{result}\n")
-    f.write(f"Mean auc: {np.mean(np.array(results), axis=0)}")
-    f.write(f"Mean mean_distances: {np.mean(np.array(results), axis=1)}")
+        f.write(f"{result[0]}, {result[1]}\n")
+    f.write(f"Mean auc (max 25): {np.mean(auc_list)}\n")
+    f.write(f"Mean mean_distances: {np.mean(mean_distance_list)}\n")
 print(f"saved results to {os.path.join(out_dir, 'results.txt')}")
 
+plt.figure()
+plt.plot(thresholds, mean_success_rates)
+print(integrate.trapz(mean_success_rates, thresholds))
+plt.xlabel('Threshold')
+plt.ylabel('Mean Success Rate')
+plt.title('mean mean Success Rate vs Threshold')
+plt.ylim([0, 1])
+fig_path = os.path.join(out_dir, 'eval_all.png')
+plt.savefig(fig_path, format='png')
 
+print(f"saved final figure to {fig_path}")
 #------------------------------------------------------------------------------------
 '''
 #IDIR
