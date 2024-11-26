@@ -7,6 +7,7 @@ from models import models
 import torch
 import numpy as np
 
+
 current_directory = os.getcwd()
 results = []
 
@@ -17,7 +18,7 @@ kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
 kwargs["lr"] = 0.00001
 kwargs["epochs"] = 3000    #2500
 kwargs["batch_size"] = 20000   #10000
-kwargs["patience"] = 500
+kwargs["patience"] = 300
 kwargs["image_shape"] = [2000, 2000]    #RFMID fails on < 1712, also weird plots...
 kwargs["hyper_regularization"] = False
 kwargs["jacobian_regularization"] = False
@@ -86,7 +87,7 @@ print(f"saved results to {os.path.join(out_dir, 'results.txt')}")
 
 plt.figure()
 plt.plot(thresholds, mean_success_rates)
-print(integrate.trapz(mean_success_rates, thresholds))
+print(integrate.trapezoid(mean_success_rates, thresholds))
 plt.xlabel('Threshold')
 plt.ylabel('Mean Success Rate')
 plt.title('mean mean Success Rate vs Threshold')

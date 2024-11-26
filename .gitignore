@@ -3,7 +3,9 @@ data/raw/*
 data/temp/*
 data/processed/*
 results/*
-/data
+data
+old_figures
+out
 
 # exceptions to the above rules
 !data/raw/.gitkeep
