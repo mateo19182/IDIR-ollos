@@ -1,3 +1,0 @@
-Mean Distance: 92.0436
-Area Under the Curve (AUC): 0.7850
-Threshold for 90% success rate: Not achieved
