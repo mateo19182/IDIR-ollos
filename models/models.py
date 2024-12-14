@@ -455,7 +455,7 @@ class ImplicitRegistrator2d:
         # Check if all kwargs keys are valid (this checks for typos)
         assert all(kwarg in self.args.keys() for kwarg in kwargs)
 
-        self.patience = kwargs.get('patience', 50)  # Number of epochs to wait for improvement
+        self.patience = kwargs.get('patience', 100)  # Number of epochs to wait for improvement
         self.min_delta = kwargs.get('min_delta', 1e-4)  # Minimum change in loss to qualify as an improvement
         self.best_loss = float('inf')
         self.counter = 0
@@ -683,10 +683,7 @@ class ImplicitRegistrator2d:
         self.args["lr"] = 0.00001   
         self.args["batch_size"] = 10000 #tensor size   
         self.args["layers"] = [2, 256, 256, 256, 2]
-        self.args["velocity_steps"] = 1
-
-        #regularizacion ramalño vcambia segun tamaño de batch
-        
+        self.args["velocity_steps"] = 1  
 
         # Define argument defaults specific to this class
         self.args["output_regularization"] = False

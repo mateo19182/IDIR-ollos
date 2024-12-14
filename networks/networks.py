@@ -30,7 +30,8 @@ class Siren(nn.Module):
             if weight_init:
                 with torch.no_grad():
                     if i == 0:
-                        self.layers[-1].weight.uniform_(-1 / layers[i], 1 / layers[i])
+                        self.layers[-1].weight.uniform_(-1 / layers[i], 1 / layers[i]) # Current Initialization Range: [−0.5,0.5][−0.5,0.5] // Recommended Initialization Range: [−15.0,15.0][−15.0,15.0]
+                        # print(self.layers[-1].weight)
                     else:
                         self.layers[-1].weight.uniform_(
                             -np.sqrt(6 / layers[i]) / self.omega,
