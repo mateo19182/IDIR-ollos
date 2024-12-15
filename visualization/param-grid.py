@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def extract_results(fire_dir):
+def extract_results(dir):
     """
     Traverse the FIRE directory and extract Mean AUC, Learning Rate, and Batch Size from each results.txt.
     
@@ -16,8 +16,8 @@ def extract_results(fire_dir):
     results = []
     
     # Iterate through each subdirectory in FIRE
-    for subdir in os.listdir(fire_dir):
-        subdir_path = os.path.join(fire_dir, subdir)
+    for subdir in os.listdir(dir):
+        subdir_path = os.path.join(dir, subdir)
         if os.path.isdir(subdir_path):
             results_file = os.path.join(subdir_path, 'results.txt')
             if os.path.exists(results_file):
@@ -64,7 +64,7 @@ def visualize_results(df, output_path=None):
     - output_path (str, optional): Path to save the heatmap image. If None, displays the plot.
     """
     # Pivot the DataFrame to create a matrix suitable for heatmap
-    pivot_table = df.pivot(index='Learning_Rate', columns='Batch_Size', values='Mean_AUC')
+    pivot_table = df.pivot(index='Learning_Rate', columns='Batch_Size', values='Mean_AUC').fillna(float('nan'))
     
     # Sort the axes for better visualization
     pivot_table = pivot_table.sort_index(ascending=True)
@@ -86,15 +86,14 @@ def visualize_results(df, output_path=None):
 def main():
     # Define the path to the FIRE directory
     current_directory = os.getcwd()
-    fire_dir = os.path.join(current_directory, 'out', 'grid', 'SIREN')
-    
+    dir = os.path.join(current_directory, 'out', 'grid', 'FIRE', 'SIREN')
     # Check if the FIRE directory exists
-    if not os.path.exists(fire_dir):
-        print(f"The directory {fire_dir} does not exist.")
+    if not os.path.exists(dir):
+        print(f"The directory {dir} does not exist.")
         return
     
     # Extract results
-    df = extract_results(fire_dir)
+    df = extract_results(dir)
     
     if df.empty:
         print("No results found. Please check the directory structure and results.txt files.")
@@ -104,13 +103,14 @@ def main():
     print(df)
     
     # Save the aggregated results to a CSV file
-    aggregated_results_file = os.path.join(fire_dir, 'aggregated_results.csv')
+    aggregated_results_file = os.path.join(dir, 'aggregated_results.csv')
     df.to_csv(aggregated_results_file, index=False)
     print(f"Aggregated results saved to {aggregated_results_file}")
     
     # Visualize the results
-    heatmap_path = os.path.join(fire_dir, 'mean_auc_heatmap.png')
+    heatmap_path = os.path.join(dir, f'{dir}_heatmap.png')
     visualize_results(df, output_path=heatmap_path)
 
 if __name__ == "__main__":
-    main()
+    # main()
+    visualize_results(pd.read_csv('/home/mateo/projects/ai/IDIR/out/grid/FIRE/aggregated_results.csv'), output_path=os.path.join(os.getcwd(), 'out', 'grid', 'FIRE', 'SIREN_heatmap.png'))

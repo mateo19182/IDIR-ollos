@@ -20,7 +20,7 @@ for lr in learning_rates:
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["epochs"] = 250 #2500
+        kwargs["epochs"] = 3500 #2500
         kwargs["patience"] = 100
         kwargs["image_shape"] = [1708, 1708]
         kwargs["hyper_regularization"] = False
@@ -51,7 +51,7 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in [1 , 68, 129, 170, 223, 319]:
+            for i in [1 , 68, 129, 170, 223, 319, 403]:
                 result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
                 if result is None:
                     continue

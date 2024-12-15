@@ -569,16 +569,12 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     # rev_dfv = dfv.reshape(dfs.shape[0], dfs.shape[1], 2)
     # rev_dfv = dfs - (rev_dfv - dfs)
     # rev_dfv = rev_dfv.reshape((vol_shape[0]*vol_shape[1], 2))
-    #mapx = mapx - 0.2
+    # #mapx = mapx - 0.2
     #mapy = mapy - 0.1
     #dfm = np.stack([mapy, mapx], axis=2)
-    #dfv = np.stack([mapy, mapx], axis=2)
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((vol_shape[0], vol_shape[1]), spacing=64, thickness=3))
     
-    # dfv_inv_x = dfs[:, 0] - (dfv[:, 0] - dfs[:, 0])
-    # dfv_inv_y = dfs[:, 1] - (dfv[:, 1] - dfs[:, 1])
-    # dfv = -dfv
     # tr1 = bilinear_interpolation(grid, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
     # img = bilinear_interpolation(fixed_image, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
     
@@ -625,10 +621,9 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
         # dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         # oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        # oy, ox = simple_bilinear_interpolation_point(dfs, x, y, scale)
+        oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
         dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
-
-        # dx, dy = ox, oy
+        
         # dx = ox+(ox-dx)
         # dy = oy+(oy-dy)
 
@@ -641,10 +636,8 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
         axes[2].scatter(x_res, y_res, c='b', s=1)  
-        # axes[2].scatter(ox_res, oy_res, c='y', s=1)
-        # axes[4].scatter(x, y, c='w', s=1) 
-        # axes[4].scatter(x_truth, y_truth, c='g', s=1) 
-        # axes[4].scatter(x_res, y_res, c='b', s=1)  
+        # axes[2].scatter(ox_res, oy_res, c='w', s=1)
+
         axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
         axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
         axes[2].plot([x, x_res], [y, y_res], linestyle='-', color='yellow', linewidth=0.2)
@@ -652,7 +645,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         # axes[3].scatter(x*scale, y*scale, c='w', s=1) 
         # axes[3].scatter(x_truth*scale, y_truth*scale, c='g', s=1) 
         # axes[3].scatter(x_res*scale, y_res*scale, c='b', s=1)  
-        # # axes[3].annotate(f'{dist:.2f}', (x_res*scale, y_res*scale))
+        # axes[3].annotate(f'{dist:.2f}', (x_res*scale, y_res*scale))
         # axes[3].plot([x_truth*scale, x_res*scale], [y_truth*scale, y_res*scale], linestyle='-', color='red', linewidth=0.1)
 
         dists.append(dist)
