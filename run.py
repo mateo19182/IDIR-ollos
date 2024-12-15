@@ -9,10 +9,10 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "FIRE"  # "FIRE", "RFMID"
+TARGET = "RFMID"  # "FIRE", "RFMID"
 
-learning_rates = [0.00001, 0.000001]
-batch_sizes = [40000, 80000, 100000]
+learning_rates = [0.0001, 0.00001, 0.000001, 0.0000001]
+batch_sizes = [ 10000, 40000, 70000, 100000]
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -20,9 +20,9 @@ for lr in learning_rates:
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["epochs"] = 1000  #2500
+        kwargs["epochs"] = 250 #2500
         kwargs["patience"] = 100
-        kwargs["image_shape"] = [1708, 1708]    #RFMID fails on < 1708
+        kwargs["image_shape"] = [1708, 1708]
         kwargs["hyper_regularization"] = False
         kwargs["jacobian_regularization"] = False
         kwargs["bending_regularization"] = True
@@ -30,14 +30,14 @@ for lr in learning_rates:
         kwargs["save_checkpoints"] = False
 
         data_dir = os.path.join(current_directory, 'data/', TARGET)
-        base_out_dir = os.path.join(current_directory, 'out',  f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
+        base_out_dir = os.path.join(current_directory, 'out', 'try', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
         out_dir = general.create_unique_dir(base_out_dir)
 
         if TARGET == "FIRE":
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-            #for i in range(0, 5):
-            for i in [10, 20, 30, 100, 110, 120]:
+            # for i in range(0, 50):
+            for i in [10, 20, 30, 99, 110, 120]:
                 (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
 
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')

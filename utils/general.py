@@ -453,10 +453,10 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
 
-    axes[0].imshow(moving_image, cmap='gray')
+    axes[0].imshow(fixed_image, cmap='gray')
     axes[0].set_title('Fixed Image')    
 
-    axes[1].imshow(fixed_image, cmap='gray')
+    axes[1].imshow(moving_image, cmap='gray')
     axes[1].set_title('Moving Image')
 
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
@@ -470,18 +470,19 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
     
     tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
-    img = bilinear_interpolation(fixed_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
+    img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     
     tr1 = tr1.reshape(vol_shape).numpy()
 
     img = cv2.resize(img.reshape(vol_shape).numpy(), (2912, 2912))
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
-    # axes[3].imshow(reg_img, cmap='gray')
-    # axes[3].set_title('reg_img')
+
     axes[3].imshow(tr1, cmap='gray')
     axes[3].set_title('grid')
 
+    # axes[4].imshow(reg_img, cmap='gray')
+    # axes[].set_title('reg_img')
     #print(dfv.shape) #(2250000, 2)
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
@@ -489,30 +490,30 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
         x= float(points[0])
         y=float(points[1])
         x_truth = float(points[2])
-        y_truth = float(points[3])     
+        y_truth = float(points[3])
 
-        axes[0].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
-        axes[1].scatter(x, y, c='w', s=2)  # Moving image points
+        axes[0].scatter(x, y, c='w', s=2)  # Fixed image points
+        axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Moving image points
 
         #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
-        oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        #oy, ox = simple_bilinear_interpolation_point(dfs, x, y, scale)
-        dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
+        # oy, ox = dfs[int(np.round(y_truth*scale)), int(np.round(x_truth*scale))]
+        oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, x_truth, y_truth, scale)
 
-        dx = ox + (ox-dx)
-        dy = oy + (oy-dy)
+        dx = ox+(ox-dx)
+        dy = oy+(oy-dy)
 
         x_res= (dx  + 1 ) * (2912 - 1) * 0.5
         y_res= (dy  + 1 ) * (2912 - 1) * 0.5
 
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
+        dist = np.linalg.norm(np.array((x, y)) - np.array((x_res, y_res)))
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
         axes[2].scatter(x_res, y_res, c='b', s=1)  
         axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
         axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
-
+        axes[2].plot([x, x_res], [y, y_res], linestyle='-', color='yellow', linewidth=0.2)
         # axes[3].scatter(x*scale, y*scale, c='w', s=1) 
         # axes[3].scatter(x_truth*scale, y_truth*scale, c='g', s=1) 
         # axes[3].scatter(x_res*scale, y_res*scale, c='b', s=1)  
@@ -547,7 +548,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_image, mask):
     scale = vol_shape[0]/mask.shape[0]
-    print(scale)
+    # print(scale)
     dists = []
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
     success_rates = []
@@ -565,6 +566,9 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
     dfs = np.stack([mapy, mapx], axis=2)
+    # rev_dfv = dfv.reshape(dfs.shape[0], dfs.shape[1], 2)
+    # rev_dfv = dfs - (rev_dfv - dfs)
+    # rev_dfv = rev_dfv.reshape((vol_shape[0]*vol_shape[1], 2))
     #mapx = mapx - 0.2
     #mapy = mapy - 0.1
     #dfm = np.stack([mapy, mapx], axis=2)
@@ -575,6 +579,9 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     # dfv_inv_x = dfs[:, 0] - (dfv[:, 0] - dfs[:, 0])
     # dfv_inv_y = dfs[:, 1] - (dfv[:, 1] - dfs[:, 1])
     # dfv = -dfv
+    # tr1 = bilinear_interpolation(grid, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
+    # img = bilinear_interpolation(fixed_image, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
+    
     tr1 = bilinear_interpolation(grid, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     
@@ -584,14 +591,20 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
     axes[2].imshow(img, cmap='gray')
     axes[2].set_title('Registered Image')
-    # axes[3].imshow(reg_img, cmap='gray')
-    # axes[3].set_title('reg_img')
+
     axes[3].imshow(tr1, cmap='gray')
     axes[3].set_title('grid')
-
+    
+    # axes[4].imshow(reg_img, cmap='gray')
+    # axes[4].set_title('reg_img')
+    
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
-    x, y = np.meshgrid(np.arange(0, mask.shape[0], 100), np.arange(0, mask.shape[1], 100))
+    step = 200
+    x, y = np.meshgrid(
+        np.arange(step, mask.shape[0] - step, step),
+        np.arange(step, mask.shape[1] - step, step)
+    )
     xy_points = np.column_stack((x.ravel(), y.ravel()))
 
     ground_truth = []
@@ -602,31 +615,37 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
 
     for points in ground_truth:
-        x_truth= float(points[0])
-        y_truth=float(points[1])
-        x = float(points[2])
-        y = float(points[3])     
+        x= float(points[0])
+        y=float(points[1])
+        x_truth = float(points[2])
+        y_truth = float(points[3])     
 
-        axes[1].scatter(x, y, c='w', s=2)  # Moving image points
-        axes[0].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
+        axes[0].scatter(x, y, c='w', s=2)  # Moving image points
+        axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
 
-        #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
-        oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
-        #oy, ox = simple_bilinear_interpolation_point(dfs, x, y, scale)
+        # dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
+        # oy, ox = dfs[int(np.round(y*scale)), int(np.round(x*scale))]
+        # oy, ox = simple_bilinear_interpolation_point(dfs, x, y, scale)
         dy, dx = simple_bilinear_interpolation_point(dfv, x, y, scale)
 
-        dx = ox + (ox-dx)
-        dy = oy + (oy-dy)
+        # dx, dy = ox, oy
+        # dx = ox+(ox-dx)
+        # dy = oy+(oy-dy)
 
-        x_res= (dx  + 1 ) * (mask.shape[0] - 1) * 0.5
-        y_res= (dy  + 1 ) * (mask.shape[0] - 1) * 0.5
-
+        x_res= (dx  + 1 ) * (1708 - 1) * 0.5
+        y_res= (dy  + 1 ) * (1708 - 1) * 0.5
+        # ox_res= (ox  + 1 ) * (1708 - 1) * 0.5
+        # oy_res= (oy  + 1 ) * (1708 - 1) * 0.5
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((x_truth, y_truth)) - np.array((x_res, y_res)))
         axes[2].scatter(x, y, c='w', s=1) 
         axes[2].scatter(x_truth, y_truth, c='g', s=1) 
         axes[2].scatter(x_res, y_res, c='b', s=1)  
-        # axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
+        # axes[2].scatter(ox_res, oy_res, c='y', s=1)
+        # axes[4].scatter(x, y, c='w', s=1) 
+        # axes[4].scatter(x_truth, y_truth, c='g', s=1) 
+        # axes[4].scatter(x_res, y_res, c='b', s=1)  
+        axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
         axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='red', linewidth=0.2)
         axes[2].plot([x, x_res], [y, y_res], linestyle='-', color='yellow', linewidth=0.2)
 
