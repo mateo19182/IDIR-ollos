@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def extract_results(dir):
+def extract_results(dir, val):
     """
     Traverse the FIRE directory and extract Mean AUC, Learning Rate, and Batch Size from each results.txt.
     
@@ -27,11 +27,12 @@ def extract_results(dir):
                     lr = None
                     batch_size = None
                     for line in lines:
-                        if "Mean auc" in line:
+                        # if "Mean auc" in line:
+                        if f"Mean {val}" in line:
                             try:
                                 mean_auc = float(line.strip().split(":")[1])
                             except ValueError:
-                                print(f"Error parsing Mean AUC in {results_file}")
+                                print(f"Error parsing Mean {val} in {results_file}")
                         elif line.startswith("lr:"):
                             try:
                                 lr = float(line.strip().split(":")[1])
@@ -47,7 +48,7 @@ def extract_results(dir):
                         results.append({
                             'Learning_Rate': lr,
                             'Batch_Size': batch_size,
-                            'Mean_AUC': mean_auc
+                            f'{val}': mean_auc
                         })
                     else:
                         print(f"Incomplete data in {results_file}")
@@ -55,24 +56,28 @@ def extract_results(dir):
     df = pd.DataFrame(results)
     return df
 
-def visualize_results(df, output_path=None):
+def visualize_results(df, val, output_path=None):
     """
-    Create a heatmap visualization of Mean AUC based on Learning Rate and Batch Size.
+    Create a heatmap visualization of Mean AUC or Mean Distance based on Learning Rate and Batch Size.
     
     Parameters:
-    - df (DataFrame): Pandas DataFrame containing Learning_Rate, Batch_Size, and Mean_AUC.
+    - df (DataFrame): Pandas DataFrame containing Learning_Rate, Batch_Size, and the specified metric.
     - output_path (str, optional): Path to save the heatmap image. If None, displays the plot.
     """
     # Pivot the DataFrame to create a matrix suitable for heatmap
-    pivot_table = df.pivot(index='Learning_Rate', columns='Batch_Size', values='Mean_AUC').fillna(float('nan'))
+    pivot_table = df.pivot(index='Learning_Rate', columns='Batch_Size', values=val).fillna(float('nan'))
     
     # Sort the axes for better visualization
     pivot_table = pivot_table.sort_index(ascending=True)
     pivot_table = pivot_table.sort_index(axis=1, ascending=True)
     
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(pivot_table, annot=True, fmt=".4f", cmap="viridis")
-    plt.title('Mean AUC Heatmap for FIRE Experiments')
+    plt.figure(figsize=(15, 8))
+    
+    # Choose color map based on the metric
+    cmap = "viridis" if val == "auc" else "viridis_r"
+    
+    sns.heatmap(pivot_table, annot=True, fmt=".2f", cmap=cmap, annot_kws={"size": 8})
+    plt.title(f'{val.replace("_", " ").title()} Heatmap for Experiments')
     plt.xlabel('Batch Size')
     plt.ylabel('Learning Rate')
     
@@ -86,14 +91,15 @@ def visualize_results(df, output_path=None):
 def main():
     # Define the path to the FIRE directory
     current_directory = os.getcwd()
-    dir = os.path.join(current_directory, 'out', 'grid', 'FIRE', 'SIREN')
+    dir = os.path.join(current_directory, 'out', 'try', 'RFMID')
+    val = 'auc' # auc or mean_distance
     # Check if the FIRE directory exists
     if not os.path.exists(dir):
         print(f"The directory {dir} does not exist.")
         return
     
     # Extract results
-    df = extract_results(dir)
+    df = extract_results(dir, val)
     
     if df.empty:
         print("No results found. Please check the directory structure and results.txt files.")
@@ -108,9 +114,8 @@ def main():
     print(f"Aggregated results saved to {aggregated_results_file}")
     
     # Visualize the results
-    heatmap_path = os.path.join(dir, f'{dir}_heatmap.png')
-    visualize_results(df, output_path=heatmap_path)
+    heatmap_path = os.path.join(dir, f'{dir}_heatmap_{val}.png')
+    visualize_results(df, val, output_path=heatmap_path)
 
 if __name__ == "__main__":
-    # main()
-    visualize_results(pd.read_csv('/home/mateo/projects/ai/IDIR/out/grid/FIRE/aggregated_results.csv'), output_path=os.path.join(os.getcwd(), 'out', 'grid', 'FIRE', 'SIREN_heatmap.png'))
+    main()

@@ -118,7 +118,6 @@ def gradient(input_coords, output, grad_outputs=None):
 
 #----------------------------------------------
 
-
 def compute_hyper_elastic_loss_2d(
     input_coords, output, batch_size=None, alpha_l=1, alpha_a=1
 ):
@@ -146,7 +145,6 @@ def compute_hyper_elastic_loss_2d(
 
     return loss
 
-
 def compute_jacobian_loss_2d(input_coords, output, batch_size=None):
     """Compute the jacobian regularization loss."""
 
@@ -169,7 +167,6 @@ def compute_jacobian_matrix_2d(input_coords, output, add_identity=True):
             jacobian_matrix[:, i, i] += torch.ones_like(jacobian_matrix[:, i, i])
     
     return jacobian_matrix
-
 
 def compute_bending_energy_2d(input_coords, output, batch_size=None):
     """Compute the bending energy for 2D images."""

@@ -11,8 +11,12 @@ results = []
 
 TARGET = "RFMID"  # "FIRE", "RFMID"
 
-learning_rates = [0.0001, 0.00001, 0.000001, 0.0000001]
-batch_sizes = [ 10000, 40000, 70000, 100000]
+# learning_rates = [0.0001, 0.00001, 0.000001]
+# batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
+learning_rates = [0.0001]
+batch_sizes = [150000]
+
+
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -20,17 +24,17 @@ for lr in learning_rates:
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["epochs"] = 3500 #2500
+        kwargs["epochs"] = 5 #2500
         kwargs["patience"] = 100
         kwargs["image_shape"] = [1708, 1708]
         kwargs["hyper_regularization"] = False
-        kwargs["jacobian_regularization"] = False
+        kwargs["jacobian_regularization"] = True
         kwargs["bending_regularization"] = True
-        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+        kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
         kwargs["save_checkpoints"] = False
 
         data_dir = os.path.join(current_directory, 'data/', TARGET)
-        base_out_dir = os.path.join(current_directory, 'out', 'try', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
+        base_out_dir = os.path.join(current_directory, 'out', 'try2', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
         out_dir = general.create_unique_dir(base_out_dir)
 
         if TARGET == "FIRE":
