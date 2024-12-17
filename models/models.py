@@ -644,6 +644,11 @@ class ImplicitRegistrator2d:
         self.batch_size = (
             kwargs["batch_size"] if "batch_size" in kwargs else self.args["batch_size"]
         )
+
+        self.sampling = (
+            kwargs["sampling"] if "sampling" in kwargs else self.args["sampling"]
+        )
+
         # Initialization
         self.moving_image = moving_image
         self.fixed_image = fixed_image
@@ -684,6 +689,7 @@ class ImplicitRegistrator2d:
         self.args["batch_size"] = 10000 #tensor size   
         self.args["layers"] = [2, 256, 256, 256, 2]
         self.args["velocity_steps"] = 1  
+        self.args["sampling"] = "uniform"  #uniform, random
 
         # Define argument defaults specific to this class
         self.args["output_regularization"] = False
@@ -728,9 +734,15 @@ class ImplicitRegistrator2d:
         self.network.train()
 
         loss = 0
-        indices = torch.randperm(
-            self.possible_coordinate_tensor.shape[0], device="cuda"
-        )[: self.batch_size]
+
+        if self.sampling == "random":
+            indices = torch.randperm(
+                self.possible_coordinate_tensor.shape[0], device="cuda"
+            )[: self.batch_size]
+        else:
+            indices = torch.arange(self.batch_size, device="cuda") # ordenado, useless
+        
+        
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
         output = self.network(coordinate_tensor)

@@ -21,16 +21,22 @@ batch_sizes = [150000]
 for lr in learning_rates:
     for batch_size in batch_sizes:
         kwargs = {}
+        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
+        kwargs["sampling"] = "random"  # random
         kwargs["epochs"] = 150 #2500
-        kwargs["patience"] = 2500000
+        kwargs["patience"] = 100000000
         kwargs["image_shape"] = [1708, 1708]
+
         kwargs["hyper_regularization"] = False
-        kwargs["jacobian_regularization"] = True
+        kwargs["alpha_hyper"] = 0.25   #0.25
+        kwargs["jacobian_regularization"] = False
+        kwargs["alpha_jacobian"] = 0.1  #0.05 default
         kwargs["bending_regularization"] = True
-        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+        kwargs["alpha_bending"] = 10.0   #10.0
+                
         kwargs["save_checkpoints"] = False
 
         data_dir = os.path.join(current_directory, 'data/', TARGET)

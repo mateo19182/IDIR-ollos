@@ -93,3 +93,21 @@ def color_overlay(fixed, registered):
     # Blue channel can remain 0 or hold some other information if desired
 
     return color_img
+
+def display_images(images, image_names, cmap='color'):
+    n = len(images)
+    cols = 4
+    rows = np.ceil(n / cols).astype(int)
+    print(images)
+    fig, axs = plt.subplots(rows, cols, figsize=(15, 10))
+    for ax, img, name in zip(axs.flatten(), images, image_names):
+        ax.imshow(img, cmap=cmap if cmap == 'gray' else None)
+        ax.set_title(f'{name} - Shape: {img.shape}')
+        ax.axis('off')  # Hide axes ticks
+
+    if n % cols != 0:
+        for ax in axs.flatten()[n:]:
+            fig.delaxes(ax)
+
+    plt.tight_layout()
+    plt.show()

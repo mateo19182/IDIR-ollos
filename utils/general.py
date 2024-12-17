@@ -223,24 +223,6 @@ def create_unique_dir(base_dir):
             return dir_name
         suffix += 1
 
-def display_images(images, image_names, cmap='color'):
-    n = len(images)
-    cols = 4
-    rows = np.ceil(n / cols).astype(int)
-    print(images)
-    fig, axs = plt.subplots(rows, cols, figsize=(15, 10))
-    for ax, img, name in zip(axs.flatten(), images, image_names):
-        ax.imshow(img, cmap=cmap if cmap == 'gray' else None)
-        ax.set_title(f'{name} - Shape: {img.shape}')
-        ax.axis('off')  # Hide axes ticks
-
-    if n % cols != 0:
-        for ax in axs.flatten()[n:]:
-            fig.delaxes(ax)
-
-    plt.tight_layout()
-    plt.show()
-
 def make_masked_coordinate_tensor_2d(mask, dims):
     """Make a coordinate tensor."""
 
