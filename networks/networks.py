@@ -20,19 +20,24 @@ class Siren(nn.Module):
         super(Siren, self).__init__()
         self.n_layers = len(layers) - 1
         self.omega = omega
+        # self.args["omega"] = 32
+        # self.args["layers"] = [3, 256, 256, 256, 3]
 
         # Make the layers
         self.layers = []
         for i in range(self.n_layers):
             self.layers.append(nn.Linear(layers[i], layers[i + 1]))
 
-            # Weight Initialization
+            # We  ight Initialization
             if weight_init:
                 with torch.no_grad():
                     if i == 0:
-                        self.layers[-1].weight.uniform_(-1 / layers[i], 1 / layers[i]) # Current Initialization Range: [−0.5,0.5][−0.5,0.5] // SIREN Recommended Initialization Range: [−15.0,15.0][−15.0,15.0]
-                        # print(self.layers[-1].weight)
-                    else:
+                        # init.kaiming_uniform_(self.layers[-1].weight, a=0, mode='fan_in', nonlinearity='linear')                        
+                        self.layers[-1].weight.uniform_(-1 / layers[i], 1 / layers[i]) 
+                        # Current Initialization Range: [−0.5,0.5] // SIREN Recommended Initialization Range: [−15.0,15.0] ?
+                        # print(self.layers[-1].weight)                             
+                    else:                
+                        # init.kaiming_uniform_(self.layers[-1].weight, a=0, mode='fan_in', nonlinearity='linear')                        
                         self.layers[-1].weight.uniform_(    #this one ok
                             -np.sqrt(6 / layers[i]) / self.omega,
                             np.sqrt(6 / layers[i]) / self.omega,

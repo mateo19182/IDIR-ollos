@@ -8,6 +8,10 @@ import cv2
 import SimpleITK as sitk
 import pystrum
 from scipy import integrate
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '../visualization'))
+import fig_vis
 
 
 def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
@@ -453,12 +457,6 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
 
-    axes[0].imshow(fixed_image, cmap='gray')
-    axes[0].set_title('Fixed Image')    
-
-    axes[1].imshow(moving_image, cmap='gray')
-    axes[1].set_title('Moving Image')
-
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
     dfs = np.stack([mapy, mapx], axis=2)
     
@@ -468,57 +466,49 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     #dfv = np.stack([mapy, mapx], axis=2)
 
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
-    
     tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
-    
     tr1 = tr1.reshape(vol_shape).numpy()
 
     img = cv2.resize(img.reshape(vol_shape).numpy(), (2912, 2912))
-    axes[2].imshow(img, cmap='gray')
-    axes[2].set_title('Registered Image')
 
+    axes[0].imshow(fixed_image, cmap='gray')
+    axes[0].set_title('Fixed Image')    
+    axes[1].imshow(img, cmap='gray')
+    axes[1].set_title('Registered Image')
+    axes[2].imshow(moving_image, cmap='gray')
+    axes[2].set_title('Moving Image')
     axes[3].imshow(tr1, cmap='gray')
     axes[3].set_title('grid')
 
-    # axes[4].imshow(reg_img, cmap='gray')
-    # axes[].set_title('reg_img')
-    #print(dfv.shape) #(2250000, 2)
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
 
     for points in ground_truth:
-        x= float(points[0])
-        y=float(points[1])
-        x_truth = float(points[2])
-        y_truth = float(points[3])
-
-        axes[0].scatter(x, y, c='w', s=2)  # Fixed image points
-        axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Moving image points
+        fixed_x= float(points[0])
+        fixed_y=float(points[1])
+        moving_x = float(points[2])
+        moving_y = float(points[3])
 
         #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         # oy, ox = dfs[int(np.round(y_truth*scale)), int(np.round(x_truth*scale))]
-        oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
-        dy, dx = simple_bilinear_interpolation_point(dfv, x_truth, y_truth, scale)
+        # oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, moving_x, moving_y, scale)
 
-        dx = ox+(ox-dx)
-        dy = oy+(oy-dy)
+        # dx = ox+(ox-dx)
+        # dy = oy+(oy-dy)
 
         x_res= (dx  + 1 ) * (2912 - 1) * 0.5
         y_res= (dy  + 1 ) * (2912 - 1) * 0.5
 
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x, y)) - np.array((x_res, y_res)))
-        axes[2].scatter(x, y, c='w', s=1) 
-        axes[2].scatter(x_truth, y_truth, c='g', s=1) 
+        dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
+
+        axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
+        axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
+        axes[2].scatter(moving_x, moving_y, c='g', s=2)  
         axes[2].scatter(x_res, y_res, c='b', s=1)  
         axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
-        axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='yellow', linewidth=0.2)
-        axes[2].plot([x, x_res], [y, y_res], linestyle='-', color='red', linewidth=0.2)
-        # axes[3].scatter(x*scale, y*scale, c='w', s=1) 
-        # axes[3].scatter(x_truth*scale, y_truth*scale, c='g', s=1) 
-        # axes[3].scatter(x_res*scale, y_res*scale, c='b', s=1)  
-        # axes[3].annotate(f'{dist:.2f}', (x_res*scale, y_res*scale))
-        # axes[3].plot([x_truth*scale, x_res*scale], [y_truth*scale, y_res*scale], linestyle='-', color='red', linewidth=0.2)
+        axes[2].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
 
         dists.append(dist)
  
@@ -536,14 +526,16 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
 
     fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
-    plt.figure()
-    plt.plot(thresholds, success_rates)
-    plt.xlabel('Threshold')
-    plt.ylabel('Success Rate')
-    plt.title('Success Rate vs Threshold')
-    plt.ylim([0, 1]) 
-    fig_path = os.path.join(save_path, 'eval.png')
-    plt.savefig(fig_path, format='png')
+    print("Plot saved at: ", fig_path)
+
+    # plt.figure()
+    # plt.plot(thresholds, success_rates)
+    # plt.xlabel('Threshold')
+    # plt.ylabel('Success Rate')
+    # plt.title('Success Rate vs Threshold')
+    # plt.ylim([0, 1]) 
+    # fig_path = os.path.join(save_path, 'eval.png')
+    # plt.savefig(fig_path, format='png')
     return calculate_metrics(thresholds, success_rates, dists, save_path)
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_image, mask):
@@ -553,48 +545,32 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
     success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 4))
-    axes[0].imshow(fixed_image, cmap='gray')
-    axes[0].set_title('Fixed Image')
-
-    axes[1].imshow(moving_image, cmap='gray')
-    axes[1].set_title('Moving Image')    
-    
     # if np.array_equal(img, fixed_image.numpy()):
     #     print("The images are the same.")
     # else:
     #     print("The images are different.")
-
-    mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
-    dfs = np.stack([mapy, mapx], axis=2)
-    # rev_dfv = dfv.reshape(dfs.shape[0], dfs.shape[1], 2)
-    # rev_dfv = dfs - (rev_dfv - dfs)
-    # rev_dfv = rev_dfv.reshape((vol_shape[0]*vol_shape[1], 2))
-    # mapx = mapx - 0.25
-    # mapy = mapy - 0.0
+    # mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
+    # dfs = np.stack([mapy, mapx], axis=2)
+    # mapx = mapx - 0.2
+    # mapy = mapy
     # dfm = np.stack([mapy, mapx], axis=2)
     # dfm=dfm.reshape((vol_shape[0]*vol_shape[1], 2))
+
     grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((vol_shape[0], vol_shape[1]), spacing=64, thickness=3))
-    
-    # tr1 = bilinear_interpolation(grid, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
-    # img = bilinear_interpolation(fixed_image, torch.from_numpy(rev_dfv[:, 0]), torch.from_numpy(rev_dfv[:, 1]))
-    
     tr1 = bilinear_interpolation(grid, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
-    # img2 = bilinear_interpolation(moving_image, torch.from_numpy(dfm[:, 0]), torch.from_numpy(dfm[:, 1]))
-
     tr1 = tr1.reshape(vol_shape).numpy()
-
     img = cv2.resize(img.reshape(vol_shape).numpy(), (mask.shape[0], mask.shape[1]))
-    # img2 = cv2.resize(img2.reshape(vol_shape).numpy(), (mask.shape[0], mask.shape[1]))
 
-    axes[2].imshow(img, cmap='gray')
-    axes[2].set_title('Registered Image')
-
+    axes[0].imshow(fixed_image, cmap='gray')
+    axes[0].set_title('Fixed Image')
+    axes[1].imshow(img, cmap='gray')
+    axes[1].set_title('Registered Image')
+    axes[2].imshow(moving_image, cmap='gray')
+    axes[2].set_title('Moving Image')    
     axes[3].imshow(tr1, cmap='gray')
     axes[3].set_title('grid')
-    
-    # axes[4].imshow(img2, cmap='gray')
-    # axes[4].set_title('reg_img')
+
     
     dfv=dfv.reshape((vol_shape[0], vol_shape[1], 2))
     # dfm=dfm.reshape((vol_shape[0], vol_shape[1], 2))
@@ -614,48 +590,31 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
 
     for points in ground_truth:
-        x= float(points[0])
-        y=float(points[1])
-        x_truth = float(points[2])
-        y_truth = float(points[3])     
-
-        axes[0].scatter(x, y, c='w', s=2)  # Moving image points
-        axes[1].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
-        
-        # axes[4].scatter(x_truth, y_truth, c='g', s=2)  # Fixed image points
+        fixed_x= float(points[0])
+        fixed_y=float(points[1])
+        moving_x = float(points[2])
+        moving_y = float(points[3])     
 
         # dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         # my, mx = dfm[int(np.round(y_truth*scale)), int(np.round(x_truth*scale))]
-        # my, mx = simple_bilinear_interpolation_point(dfm, x_truth, y_truth, scale)
-        oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
-        dy, dx = simple_bilinear_interpolation_point(dfv, x_truth, y_truth, scale)
+        # oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, fixed_x, fixed_y, scale)
         
-        # mx = ox+(ox-mx)
-        # my = oy+(oy-my)
-        dx = ox+(ox-dx)
-        dy = oy+(oy-dy)
+        # dx = ox+(ox-dx)
+        # dy = oy+(oy-dy)
 
         x_res= (dx  + 1 ) * (1708 - 1) * 0.5
         y_res= (dy  + 1 ) * (1708 - 1) * 0.5
-        # ox_res= (mx  + 1 ) * (1708 - 1) * 0.5
-        # oy_res= (my  + 1 ) * (1708 - 1) * 0.5
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
-        dist = np.linalg.norm(np.array((x, y)) - np.array((x_res, y_res)))
-        axes[2].scatter(x, y, c='w', s=1) 
-        axes[2].scatter(x_truth, y_truth, c='g', s=1) 
+        dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
+
+        axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
+        axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
+        axes[2].scatter(moving_x, moving_y, c='g', s=2)  
         axes[2].scatter(x_res, y_res, c='b', s=1)  
-        
-        # axes[4].scatter(ox_res, oy_res, c='b', s=1)
-
         axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
-        axes[2].plot([x_truth, x_res], [y_truth, y_res], linestyle='-', color='yellow', linewidth=0.2)
-        axes[2].plot([x, x_res], [y, y_res], linestyle='-', color='red', linewidth=0.2)
-
-        # axes[3].scatter(x*scale, y*scale, c='w', s=1) 
-        # axes[3].scatter(x_truth*scale, y_truth*scale, c='g', s=1) 
-        # axes[3].scatter(x_res*scale, y_res*scale, c='b', s=1)  
-        # axes[3].annotate(f'{dist:.2f}', (x_res*scale, y_res*scale))
-        # axes[3].plot([x_truth*scale, x_res*scale], [y_truth*scale, y_res*scale], linestyle='-', color='red', linewidth=0.1)
+        axes[2].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
+        # axes[2].plot([fixed_x, x_res], [fixed_y, y_res], linestyle='-', color='yellow', linewidth=0.2)
 
         dists.append(dist)
  
@@ -672,16 +631,34 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
     fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
-    plt.figure()
-    plt.plot(thresholds, success_rates)
-    plt.xlabel('Threshold')
-    plt.ylabel('Success Rate')
-    plt.title('Success Rate vs Threshold')
-    plt.ylim([0, 1]) 
-    fig_path = os.path.join(save_path, 'eval.png')
-    plt.savefig(fig_path, format='png')
+    print("Plot saved at: ", fig_path)
+    # plt.figure()
+    # plt.plot(thresholds, success_rates)
+    # plt.xlabel('Threshold')
+    # plt.ylabel('Success Rate')
+    # plt.title('Success Rate vs Threshold')
+    # plt.ylim([0, 1]) 
+    # fig_path = os.path.join(save_path, 'eval.png')
+    # plt.savefig(fig_path, format='png')
+    
+
+    # fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+
+    # # Create and display checkerboard image
+    # checker_img = fig_vis.create_checkerboard(fixed_image, img)
+    # ax[0].imshow(checker_img, cmap='gray')
+    # ax[0].set_title('Checkerboard: Fixed vs. Registered')
+
+    # color_mixed = fig_vis.color_overlay(fixed_image, img)
+    # ax[1].imshow(color_mixed)
+    # ax[1].set_title('Color Overlay: Red=Fixed, Green=Registered (Yellow=Match)')
+    # # Save the figure
+    # fig.tight_layout()
+    # fig_path = os.path.join(save_path, 'combined_visualization.png')
+    # plt.savefig(fig_path, format='png')
 
     return calculate_metrics(thresholds, success_rates, dists, save_path)
+
 
 def clean_memory():
     torch.cuda.empty_cache()

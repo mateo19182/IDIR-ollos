@@ -9,7 +9,7 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "RFMID"  # "FIRE", "RFMID"
+TARGET = "FIRE"  # "FIRE", "RFMID"
 
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
@@ -24,24 +24,24 @@ for lr in learning_rates:
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["epochs"] = 5 #2500
-        kwargs["patience"] = 100
+        kwargs["epochs"] = 150 #2500
+        kwargs["patience"] = 2500000
         kwargs["image_shape"] = [1708, 1708]
         kwargs["hyper_regularization"] = False
         kwargs["jacobian_regularization"] = True
         kwargs["bending_regularization"] = True
-        kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
+        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
         kwargs["save_checkpoints"] = False
 
         data_dir = os.path.join(current_directory, 'data/', TARGET)
-        base_out_dir = os.path.join(current_directory, 'out', 'try2', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
+        base_out_dir = os.path.join(current_directory, 'out', 'new', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
         out_dir = general.create_unique_dir(base_out_dir)
 
         if TARGET == "FIRE":
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
             # for i in range(0, 50):
-            for i in [10, 20, 30, 99, 110, 120]:
+            for i in [20]:
                 (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
 
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
@@ -55,7 +55,7 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in [1 , 68, 129, 170, 223, 319, 403]:
+            for i in [1]:
                 result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
                 if result is None:
                     continue
@@ -69,7 +69,6 @@ for lr in learning_rates:
                 ImpReg.fit()
                 registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
 
-                #general.display_dfv(registered_img, dfv, fixed, moving, ImpReg.save_folder)
                 results.append(general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask))
                 #general.clean_memory()
 
@@ -89,12 +88,9 @@ for lr in learning_rates:
             for key, value in kwargs.items():
                 if key != "mask":
                     f.write(f"{key}: {value}\n")
-
-        print(f"saved results to {os.path.join(out_dir, 'results.txt')}")
-
         plt.figure()
         plt.plot(thresholds, mean_success_rates)
-        print(integrate.trapezoid(mean_success_rates, thresholds))
+        # print(integrate.trapezoid(mean_success_rates, thresholds))
         plt.xlabel('Threshold')
         plt.ylabel('Mean Success Rate')
         plt.title('mean Success Rate vs Threshold')
