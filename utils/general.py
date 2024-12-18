@@ -225,7 +225,7 @@ def create_unique_dir(base_dir):
 
 def make_masked_coordinate_tensor_2d(mask, dims):
     """Make a coordinate tensor."""
-
+    mask = np.ceil(mask).clip(0, 1)
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
     coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
@@ -252,6 +252,36 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     if gpu:
         coordinate_grid = coordinate_grid.cuda()
     return coordinate_grid
+
+def weight_mask(mask, fixed_image, save):
+    # Ensure on CPU and convert to numpy for OpenCV
+    mask_np = mask.astype(np.uint8) 
+    img_np = fixed_image.cpu().numpy().astype(np.float32)
+    
+    # Compute gradients using Sobel operators
+    grad_x = cv2.Sobel(img_np, cv2.CV_64F, 1, 0, ksize=3)
+    grad_y = cv2.Sobel(img_np, cv2.CV_64F, 0, 1, ksize=3)
+    
+    # Compute gradient magnitude
+    grad_mag = np.sqrt(grad_x**2 + grad_y**2)
+    
+    # Apply mask
+    grad_mag = grad_mag * mask_np
+    
+    # Normalize to create a probability distribution
+    eps = 1e-8
+    total = grad_mag.sum() + eps
+    weights_np = grad_mag / total
+    
+    if save:
+        fig_vis.save_weight_map_as_image(weights_np)
+
+    # Convert back to torch
+    weights = torch.from_numpy(weights_np).to('cuda')
+    mask = mask.flatten() > 0
+    weights = weights.flatten()[mask]
+
+    return weights
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])

@@ -111,3 +111,13 @@ def display_images(images, image_names, cmap='color'):
 
     plt.tight_layout()
     plt.show()
+
+def save_weight_map_as_image(weight_map, filename="weight_masp.png"):
+    # Move to CPU and convert to numpy
+    weight_map_np = weight_map.reshape(1708, 1708).astype(np.float32)
+    
+    # Since it's a probability map, its max may be small. Rescale to [0, 1]
+    vis_map = (weight_map_np - weight_map_np.min()) / (weight_map_np.max() - weight_map_np.min() + 1e-8)
+    # Save using matplotlib
+    plt.imsave(filename, vis_map, cmap='gray')
+    print(f"Saved weight map image to {filename}")

@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 import tqdm
+import numpy as np
 
 from utils import general
 from networks import networks
@@ -735,14 +736,14 @@ class ImplicitRegistrator2d:
 
         loss = 0
 
-        if self.sampling == "random":
+        if self.sampling == "weighted":
+            weights = general.weight_mask(self.mask, self.fixed_image, save=(epoch % 1000 == 0)) #improve!!
+            indices = torch.multinomial(weights, self.batch_size, replacement=True)
+        elif self.sampling == "random":
             indices = torch.randperm(
                 self.possible_coordinate_tensor.shape[0], device="cuda"
             )[: self.batch_size]
-        else:
-            indices = torch.arange(self.batch_size, device="cuda") # ordenado, useless
-        
-        
+
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
         output = self.network(coordinate_tensor)
