@@ -254,20 +254,33 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     return coordinate_grid
 
 def weight_mask(mask, fixed_image, save):
-    # Ensure on CPU and convert to numpy for OpenCV
-    mask_np = mask.astype(np.uint8) 
-    img_np = fixed_image.cpu().numpy().astype(np.float32)
+    # Ensure on GPU
+    # mask = mask.to('cuda').float()
+    img = fixed_image.to('cuda').float()
+    
+    # Normalize the image to have values between 0 and 1
+    img = (img - img.min()) / (img.max() - img.min() + 1e-8)
     
     # Compute gradients using Sobel operators
-    grad_x = cv2.Sobel(img_np, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(img_np, cv2.CV_64F, 0, 1, ksize=3)
+    grad_x = cv2.Sobel(img.cpu().numpy(), cv2.CV_64F, 1, 0, ksize=9)
+    grad_y = cv2.Sobel(img.cpu().numpy(), cv2.CV_64F, 0, 1, ksize=9)
     
     # Compute gradient magnitude
     grad_mag = np.sqrt(grad_x**2 + grad_y**2)
     
     # Apply mask
-    grad_mag = grad_mag * mask_np
+    grad_mag = grad_mag * mask
     
+    # Avoid computing gradients on the borders of the mask
+    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(grad_mag, contours, -1, (0, 0, 0), thickness=5)
+
+    # Increase the contrast by making darker parts more dark
+    grad_mag = np.power(grad_mag, 2) # the higher the power, the less the dark parts will be sampled
+
+    # Apply Gaussian blur to the gradient magnitude
+    grad_mag = cv2.GaussianBlur(grad_mag, (201, 201), 0)
+
     # Normalize to create a probability distribution
     eps = 1e-8
     total = grad_mag.sum() + eps
@@ -276,12 +289,13 @@ def weight_mask(mask, fixed_image, save):
     if save:
         fig_vis.save_weight_map_as_image(weights_np)
 
-    # Convert back to torch
+    # Convert back to torch and move to GPU
     weights = torch.from_numpy(weights_np).to('cuda')
     mask = mask.flatten() > 0
     weights = weights.flatten()[mask]
 
     return weights
+
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])

@@ -649,7 +649,7 @@ class ImplicitRegistrator2d:
         self.sampling = (
             kwargs["sampling"] if "sampling" in kwargs else self.args["sampling"]
         )
-
+        self.weight_mask = None
         # Initialization
         self.moving_image = moving_image
         self.fixed_image = fixed_image
@@ -737,12 +737,27 @@ class ImplicitRegistrator2d:
         loss = 0
 
         if self.sampling == "weighted":
-            weights = general.weight_mask(self.mask, self.fixed_image, save=(epoch % 1000 == 0)) #improve!!
-            indices = torch.multinomial(weights, self.batch_size, replacement=True)
+            if self.weight_mask is None:
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
+            indices = torch.multinomial( self.weight_mask, self.batch_size, replacement=True)
         elif self.sampling == "random":
             indices = torch.randperm(
-                self.possible_coordinate_tensor.shape[0], device="cuda"
+            self.possible_coordinate_tensor.shape[0], device="cuda"
             )[: self.batch_size]
+        elif self.sampling == "percentaje":
+            weighted_percentage = 0.8
+            weighted_batch_size = int(self.batch_size * weighted_percentage)
+            random_batch_size = self.batch_size - weighted_batch_size
+            
+            if self.weight_mask is None:
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
+            weighted_indices = torch.multinomial(self.weight_mask, weighted_batch_size, replacement=True)
+            
+            random_indices = torch.randperm(
+            self.possible_coordinate_tensor.shape[0], device="cuda"
+            )[: random_batch_size]
+            
+            indices = torch.cat((weighted_indices, random_indices))
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)

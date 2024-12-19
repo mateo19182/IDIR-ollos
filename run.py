@@ -9,13 +9,13 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "FIRE"  # "FIRE", "RFMID"
+TARGET = "RFMID"  # "FIRE", "RFMID"
 
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
-learning_rates = [0.0002]
-batch_sizes = [150000]
 
+learning_rates = [0.0001]   
+batch_sizes = [160000]
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -24,8 +24,8 @@ for lr in learning_rates:
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["sampling"] = "random"  # random, weighted
-        kwargs["epochs"] = 50 #2500
+        kwargs["sampling"] = "weighted"  # random, weighted
+        kwargs["epochs"] = 1000 #2500
         kwargs["patience"] = 100000000
         kwargs["image_shape"] = [1708, 1708]
 
@@ -34,7 +34,7 @@ for lr in learning_rates:
         kwargs["jacobian_regularization"] = False
         kwargs["alpha_jacobian"] = 0.1  #0.05 default
         kwargs["bending_regularization"] = True
-        kwargs["alpha_bending"] = 10.0   #10.0
+        kwargs["alpha_bending"] = 100.0   #10.0
                 
         kwargs["save_checkpoints"] = False
 
@@ -46,7 +46,7 @@ for lr in learning_rates:
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
             # for i in range(0, 50):
-            for i in [80]:
+            for i in [1]:
                 (fixed_image, moving_image, ground_truth, fixed, moving) = general.load_image_FIRE(i, (data_dir))
 
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
