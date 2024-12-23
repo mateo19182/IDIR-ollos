@@ -750,7 +750,7 @@ class ImplicitRegistrator2d:
             random_batch_size = self.batch_size - weighted_batch_size
             
             if self.weight_mask is None:
-                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=False)
             weighted_indices = torch.multinomial(self.weight_mask, weighted_batch_size, replacement=True)
             
             random_indices = torch.randperm(
@@ -857,7 +857,8 @@ class ImplicitRegistrator2d:
             self.data_loss_list = [0 for _ in range(epochs)]
 
         # Perform training iterations
-        for i in tqdm.tqdm(range(epochs)):
+        for i in tqdm.tqdm(range(epochs), desc="Training", unit="epoch"):
+            tqdm.tqdm.write(f"Epoch {i+1}/{epochs}, Loss: {self.loss_list[i-1]:.6f}")
             if self.save_checkpoints:
                 if i%500 == 0:
                     path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))
@@ -873,11 +874,11 @@ class ImplicitRegistrator2d:
                     print(f"Early stopping triggered at epoch {i}")
                     break
 
-        with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
-            if(self.counter >= self.patience):
-                f.write(f"Early stopping triggered at epoch {i}\n")
-            for item in self.loss_list:
-                f.write("%s\n" % item)
+        # with open(os.path.join(self.save_folder,'loss_list.txt'), 'w') as f:
+        #     if(self.counter >= self.patience):
+        #         f.write(f"Early stopping triggered at epoch {i}\n")
+        #     for item in self.loss_list:
+        #         f.write("%s\n" % item)
             
 
         #general.plot_loss_curves(self.loss_list, self.data_loss_list, self.epochs, self.save_folder)

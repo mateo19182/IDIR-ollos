@@ -296,7 +296,6 @@ def weight_mask(mask, fixed_image, save):
 
     return weights
 
-
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])
     # x_indices.shape = torch.Size([1000000])
@@ -453,7 +452,7 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
     #plt.show()
     plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
 
-def calculate_metrics(thresholds, success_rates, dists, save_path):
+def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
     # Calculate AUC
     auc = integrate.trapezoid(success_rates, thresholds)
     
@@ -473,14 +472,19 @@ def calculate_metrics(thresholds, success_rates, dists, save_path):
             f.write(f"Threshold for 90% success rate: {threshold_90:.4f}\n")
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
+        if sum(dists)<(sum(og_dists)*0.99):
+            f.write("Successful\n")
+            success = True
+        else:
+            f.write("Unsuccessful\n")
+            success = False
    
-    return [auc, mean_dist, success_rates]
+    return [auc, mean_dist, success_rates, success]
 
 def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, moving_image):
     scale = vol_shape[0]/2912
-    dists = []
+    dists, og_dists, success_rates = [], [], []
     thresholds = np.arange(0, 25, 0.1)  # 0.1 to 25.0 in steps of 0.1
-    success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 5))
 
     mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
@@ -528,6 +532,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
 
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
+        og_dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((fixed_x, fixed_y)))
 
         axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
         axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
@@ -537,12 +542,13 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
         axes[2].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
 
         dists.append(dist)
- 
-    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
-        for item in dists:
-            f.write("%s\n" % item)
-        f.write("Mean: %s\n" % np.mean(dists))
+        og_dists.append(og_dist)
 
+    # with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+    #     for item in dists:
+    #         f.write("%s\n" % item)
+    #     f.write("Mean: %s\n" % np.mean(dists))
+        
     for threshold in thresholds:
         res = 0
         for dist in dists:
@@ -562,14 +568,13 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     # plt.ylim([0, 1]) 
     # fig_path = os.path.join(save_path, 'eval.png')
     # plt.savefig(fig_path, format='png')
-    return calculate_metrics(thresholds, success_rates, dists, save_path)
+    return calculate_metrics(thresholds, success_rates, dists, og_dists, save_path)
 
 def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_image, mask):
     scale = vol_shape[0]/mask.shape[0]
     # print(scale)
-    dists = []
+    dists, og_dists, success_rates = [], [], []
     thresholds = np.arange(0.1, 25.1, 0.1)  # 0.1 to 25.0 in steps of 0.1
-    success_rates = []
     fig, axes = plt.subplots(1, 4, figsize=(20, 4))
     # if np.array_equal(img, fixed_image.numpy()):
     #     print("The images are the same.")
@@ -633,7 +638,8 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         y_res= (dy  + 1 ) * (1708 - 1) * 0.5
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
-
+        og_dist = np.linalg.norm(np.array((fixed_x, fixed_y)) - np.array((moving_x, moving_y)))
+        
         axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
         axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
         axes[2].scatter(moving_x, moving_y, c='g', s=2)  
@@ -643,10 +649,12 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         # axes[2].plot([fixed_x, x_res], [fixed_y, y_res], linestyle='-', color='yellow', linewidth=0.2)
 
         dists.append(dist)
- 
-    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
-        for item in dists:
-            f.write("%s\n" % item)
+        og_dists.append(og_dist)
+
+    # with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+    #     for item in dists:
+    #         f.write("%s\n" % item)
+    #     f.write("Mean: %s\n" % np.mean(dists))
 
     for threshold in thresholds:
         res = 0
@@ -683,7 +691,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     # fig_path = os.path.join(save_path, 'combined_visualization.png')
     # plt.savefig(fig_path, format='png')
 
-    return calculate_metrics(thresholds, success_rates, dists, save_path)
+    return calculate_metrics(thresholds, success_rates, dists, og_dists, save_path)
 
 
 def clean_memory():
