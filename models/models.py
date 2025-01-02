@@ -744,13 +744,13 @@ class ImplicitRegistrator2d:
             indices = torch.randperm(
             self.possible_coordinate_tensor.shape[0], device="cuda"
             )[: self.batch_size]
-        elif self.sampling == "percentaje":
-            weighted_percentage = 0.8
+        elif self.sampling == "percentage":
+            weighted_percentage = 0.5
             weighted_batch_size = int(self.batch_size * weighted_percentage)
             random_batch_size = self.batch_size - weighted_batch_size
             
             if self.weight_mask is None:
-                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=False)
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
             weighted_indices = torch.multinomial(self.weight_mask, weighted_batch_size, replacement=True)
             
             random_indices = torch.randperm(
@@ -858,7 +858,8 @@ class ImplicitRegistrator2d:
 
         # Perform training iterations
         for i in tqdm.tqdm(range(epochs), desc="Training", unit="epoch"):
-            tqdm.tqdm.write(f"Epoch {i+1}/{epochs}, Loss: {self.loss_list[i-1]:.6f}")
+            if (i + 1) % 25 == 0:  # Print every 10th epoch
+                tqdm.tqdm.write(f"Epoch {i+1}/{epochs}, Loss: {self.loss_list[i-1]:.6f}")
             if self.save_checkpoints:
                 if i%500 == 0:
                     path = os.path.join(self.save_folder, 'epoch-{}.pth'.format(i))

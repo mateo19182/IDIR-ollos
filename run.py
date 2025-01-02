@@ -14,27 +14,27 @@ TARGET = "RFMID"  # "FIRE", "RFMID"
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
-learning_rates = [0.0025]   
-batch_sizes = [160000]
+learning_rates = [0.00001]   
+batch_sizes = [150000]
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
         kwargs = {}
-        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+        kwargs["network_type"] = "SIREN"  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
-        kwargs["sampling"] = "weighted"  # random, weighted, percentaje
-        kwargs["epochs"] = 50 #2500
-        kwargs["patience"] = 10000
+        kwargs["sampling"] = "percentage"  # random, weighted, percentage
+        kwargs["epochs"] = 10 #2500
+        kwargs["patience"] = 250
         kwargs["image_shape"] = [1708, 1708]
 
         kwargs["hyper_regularization"] = False
         kwargs["alpha_hyper"] = 0.25   #0.25
-        kwargs["jacobian_regularization"] = False
-        kwargs["alpha_jacobian"] = 20  #0.05 default
+        kwargs["jacobian_regularization"] = True
+        kwargs["alpha_jacobian"] = 0.2  #0.05 default
         kwargs["bending_regularization"] = True
-        kwargs["alpha_bending"] = 25.0   #10.0
+        kwargs["alpha_bending"] = 50.0   #10.0
                 
         kwargs["save_checkpoints"] = False
 
@@ -60,7 +60,7 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in range(1, 100):
+            for i in range(1, 200):
                 result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
                 if result is None:
                     continue
@@ -75,7 +75,7 @@ for lr in learning_rates:
                 registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
 
                 results.append(general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask))
-                #general.clean_memory()
+                general.clean_memory()
 
         # Separate results into individual lists
         auc_list = [result[0] for result in results]

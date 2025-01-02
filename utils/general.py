@@ -253,34 +253,52 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
         coordinate_grid = coordinate_grid.cuda()
     return coordinate_grid
 
-def weight_mask(mask, fixed_image, save):
-    # Ensure on GPU
-    # mask = mask.to('cuda').float()
-    img = fixed_image.to('cuda').float()
+def weight_mask(mask, fixed_image, save=False):
+    # Ensure inputs are on CPU
+    # mask = mask.cpu().float()
+    # img = fixed_image.cpu().float()
+    
+    # Apply histogram equalization
+    img_np = fixed_image.cpu().numpy().astype(np.uint8)
+    # img_equalized = cv2.equalizeHist(img_np)
+    img_clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)).apply(img_np)  
+    img = torch.tensor(img_clahe, dtype=torch.float)
     
     # Normalize the image to have values between 0 and 1
     img = (img - img.min()) / (img.max() - img.min() + 1e-8)
     
     # Compute gradients using Sobel operators
-    grad_x = cv2.Sobel(img.cpu().numpy(), cv2.CV_64F, 1, 0, ksize=9)
-    grad_y = cv2.Sobel(img.cpu().numpy(), cv2.CV_64F, 0, 1, ksize=9)
+    grad_x = cv2.Sobel(img.numpy(), cv2.CV_64F, 1, 0, ksize=17)
+    grad_y = cv2.Sobel(img.numpy(), cv2.CV_64F, 0, 1, ksize=17)
     
     # Compute gradient magnitude
     grad_mag = np.sqrt(grad_x**2 + grad_y**2)
     
+    disk_mask = get_optical_disk_mask(fixed_image.cpu().numpy())
+    
+    if disk_mask is None:
+        disk_mask = np.zeros_like(grad_mag, dtype=grad_mag.dtype)
+    else:
+        disk_mask = disk_mask.astype(grad_mag.dtype)
+    
+    grad_mag = grad_mag + (disk_mask)  # not workinggg, si multiplico si que va pero quiero sumarr
+    
     # Apply mask
-    grad_mag = grad_mag * mask
+    grad_mag *= mask
     
     # Avoid computing gradients on the borders of the mask
-    contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(grad_mag, contours, -1, (0, 0, 0), thickness=5)
+    mask_np = mask.astype(np.uint8)
+    contours, _ = cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(grad_mag, contours, -1, 0, thickness=5)
 
-    # Increase the contrast by making darker parts more dark
-    grad_mag = np.power(grad_mag, 2) # the higher the power, the less the dark parts will be sampled
-
-    # Apply Gaussian blur to the gradient magnitude
-    grad_mag = cv2.GaussianBlur(grad_mag, (201, 201), 0)
-
+    # # Increase the contrast by making darker parts more dark
+    # grad_mag = np.power(grad_mag, 1.5)  # the higher the power, the less the dark parts will be sampled
+    # # Dilate the bright parts of the gradient magnitude
+    # # grad_mag = cv2.morphologyEx(grad_mag, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    # # Apply Gaussian blur to the gradient magnitude
+    # grad_mag = cv2.GaussianBlur(grad_mag, (51, 51), 0)
+    # grad_mag = np.power(grad_mag, 1.25) 
+    
     # Normalize to create a probability distribution
     eps = 1e-8
     total = grad_mag.sum() + eps
@@ -289,12 +307,60 @@ def weight_mask(mask, fixed_image, save):
     if save:
         fig_vis.save_weight_map_as_image(weights_np)
 
-    # Convert back to torch and move to GPU
-    weights = torch.from_numpy(weights_np).to('cuda')
+    # Flatten and apply mask
     mask = mask.flatten() > 0
-    weights = weights.flatten()[mask]
-
+    weights = torch.from_numpy(weights_np).flatten()[mask].to('cuda')
+    
     return weights
+
+def get_optical_disk_mask(image, initial_thresh=175, max_iter=5):
+    """
+    Repeatedly thresholds the image, checking if the largest contour is within
+    an acceptable size range. If not, adjusts threshold and tries again.
+    """
+    threshold_val = initial_thresh
+    desired_min_size = 25
+    desired_max_size = 600
+    step = 10
+
+    for _ in range(max_iter):
+        # Threshold the image
+        _, thresh = cv2.threshold(image.astype(np.uint8), threshold_val, 255, cv2.THRESH_BINARY)
+        
+        # Find contours in the thresholded image
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            print(f"No contours found at threshold={threshold_val}, adjusting upward.")
+            threshold_val = min(threshold_val + step, 255)
+            continue
+        
+        # Find the largest contour (assumed to be the optic disc)
+        largest_contour = max(contours, key=cv2.contourArea)
+        size = len(largest_contour)
+        print(f"Threshold={threshold_val} -> Largest contour size={size}")
+
+        if size > desired_max_size:
+            print("Contour too big, increasing threshold.")
+            threshold_val = min(threshold_val + step, 255)
+        elif size < desired_min_size:
+            print("Contour too small, decreasing threshold.")
+            threshold_val = max(threshold_val - step, 0)
+        else:
+            print("Contour size within desired range, creating mask.")
+            # Create a mask for the optic disc
+            mask = np.zeros(image.shape, np.uint8)
+            cv2.drawContours(mask, [largest_contour], -1, 255, -1)
+            # Dilate the mask to include surrounding areas
+            mask = cv2.dilate(mask, np.ones((17, 17), np.uint8), iterations=2)
+            # Apply Gaussian blur to smooth the mask
+            mask = cv2.GaussianBlur(mask, (25, 25), 0)
+            cv2.imwrite('optic_disk_mask.png', mask)
+            print("Optic disk mask saved as 'optic_disk_mask.png'")
+            return mask
+    
+    print("Unable to find suitable contour within iteration limit.")
+    return None
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])
