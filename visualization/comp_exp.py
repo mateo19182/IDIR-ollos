@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -38,7 +39,7 @@ def parse_results_file(path):
     return params
 
 def gather_experiment_data(exp_dir):
-    """Traverse subfolders in exp_dir, parse metrics, return list of stats."""
+    """Traverse subfolders in exp_dir, parse metrics, return list of stats (dict)."""
     data = []
     for sub in os.listdir(exp_dir):
         sub_path = os.path.join(exp_dir, sub)
@@ -49,92 +50,93 @@ def gather_experiment_data(exp_dir):
             data.append(stats)
     return data
 
-def compare_experiments(dir_random, dir_weighted, dir_percentage):
-    """Compare three experiments and plot them."""
-    # Grab experiment data
-    data_r = gather_experiment_data(dir_random)
-    data_w = gather_experiment_data(dir_weighted)
-    data_p = gather_experiment_data(dir_percentage)
-    
-    data_r.sort(key=lambda x: x["name"])
-    data_w.sort(key=lambda x: x["name"])
-    data_p.sort(key=lambda x: x["name"])
-    
-    names_r = [d["name"] for d in data_r]
-    names_w = [d["name"] for d in data_w]
-    names_p = [d["name"] for d in data_p]
+def compare_experiments(dir_list):
+    """
+    Compare an arbitrary list of experiment directories, collecting 'mean_distance',
+    'auc', and 'threshold_90'. Plots bar charts per metric plus a success heatmap.
+    """
+    # Gather experiment data for each directory
+    experiments = {}
+    for d in dir_list:
+        data = gather_experiment_data(d)
+        data.sort(key=lambda x: x["name"])
+        experiments[d] = data
 
-    # Only subfolders present in all three experiments
-    common = sorted(set(names_r).intersection(set(names_w)).intersection(set(names_p)))
-    r_by_name = {d["name"]: d for d in data_r}
-    w_by_name = {d["name"]: d for d in data_w}
-    p_by_name = {d["name"]: d for d in data_p}
+    # Find all subfolders for each experiment and compute intersection
+    sets_of_subs = []
+    for d in dir_list:
+        sets_of_subs.append(set(x["name"] for x in experiments[d]))
+    common_subfolders = sorted(set.intersection(*sets_of_subs))
 
-    # Extract data
-    mean_dist_r = [r_by_name[n]["mean_distance"] for n in common]
-    mean_dist_w = [w_by_name[n]["mean_distance"] for n in common]
-    mean_dist_p = [p_by_name[n]["mean_distance"] for n in common]
+    # Build dictionaries by name for easy lookup
+    exp_dicts_by_name = {d: {x["name"]: x for x in experiments[d]} for d in dir_list}
 
-    auc_r = [r_by_name[n]["auc"] for n in common]
-    auc_w = [w_by_name[n]["auc"] for n in common]
-    auc_p = [p_by_name[n]["auc"] for n in common]
+    # For each subfolder in 'common_subfolders', gather metrics from each directory
+    mean_dists = []
+    aucs = []
+    thresholds_90 = []
+    successes = []
 
-    threshold_90_r = [r_by_name[n]["threshold_90"] or 0 for n in common]
-    threshold_90_w = [w_by_name[n]["threshold_90"] or 0 for n in common]
-    threshold_90_p = [p_by_name[n]["threshold_90"] or 0 for n in common]
+    for sub in common_subfolders:
+        mean_dists.append([exp_dicts_by_name[d][sub]["mean_distance"] for d in dir_list])
+        aucs.append([exp_dicts_by_name[d][sub]["auc"] for d in dir_list])
+        thr_vals = [exp_dicts_by_name[d][sub]["threshold_90"] or 0 for d in dir_list]
+        thresholds_90.append(thr_vals)
+        successes.append([1 if exp_dicts_by_name[d][sub]["threshold_90"] is not None else 0 for d in dir_list])
 
-    # Build success matrix for heatmap (1 if threshold_90 is not None)
-    success_r = [1 if r_by_name[n]["threshold_90"] is not None else 0 for n in common]
-    success_w = [1 if w_by_name[n]["threshold_90"] is not None else 0 for n in common]
-    success_p = [1 if p_by_name[n]["threshold_90"] is not None else 0 for n in common]
-    success_matrix = np.array([[r, w, p] for r, w, p in zip(success_r, success_w, success_p)])
-    
-    # Prepare figure
-    fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-    x = np.arange(len(common))
-    bar_width = 0.25
+    # Convert to numpy arrays for convenience
+    mean_dists = np.array(mean_dists)      # shape: (num_subfolders, num_dirs)
+    aucs = np.array(aucs)                  # shape: (num_subfolders, num_dirs)
+    thresholds_90 = np.array(thresholds_90)# shape: (num_subfolders, num_dirs)
+    successes = np.array(successes)        # shape: (num_subfolders, num_dirs)
 
-    # (0, 0) Mean Distance
-    axs[0, 0].bar(x - bar_width, mean_dist_r, width=bar_width, label="Random")
-    axs[0, 0].bar(x, mean_dist_w, width=bar_width, label="Weighted")
-    axs[0, 0].bar(x + bar_width, mean_dist_p, width=bar_width, label="Percentage")
-    axs[0, 0].set_title("Mean Distance")
-    axs[0, 0].set_xticks(x)
-    axs[0, 0].set_xticklabels(common, rotation=45, ha='right')
-    axs[0, 0].legend()
+    x = np.arange(len(common_subfolders))
+    bar_width = 0.8 / len(dir_list)  # keep bars within total width 0.8
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
 
-    # (0, 1) AUC
-    axs[0, 1].bar(x - bar_width, auc_r, width=bar_width, label="Random")
-    axs[0, 1].bar(x, auc_w, width=bar_width, label="Weighted")
-    axs[0, 1].bar(x + bar_width, auc_p, width=bar_width, label="Percentage")
-    axs[0, 1].set_title("AUC")
-    axs[0, 1].set_xticks(x)
-    axs[0, 1].set_xticklabels(common, rotation=45, ha='right')
-    axs[0, 1].legend()
+    # Colors
+    colors = plt.cm.tab10(np.linspace(0, 1, len(dir_list)))
 
-    # (1, 0) Threshold 90%
-    axs[1, 0].bar(x - bar_width, threshold_90_r, width=bar_width, label="Random")
-    axs[1, 0].bar(x, threshold_90_w, width=bar_width, label="Weighted")
-    axs[1, 0].bar(x + bar_width, threshold_90_p, width=bar_width, label="Percentage")
-    axs[1, 0].set_title("Threshold 90%")
-    axs[1, 0].set_xticks(x)
-    axs[1, 0].set_xticklabels(common, rotation=45, ha='right')
-    axs[1, 0].legend()
+    # Helper to plot bars for a given ax, data matrix row=items, col=experiment
+    def plot_bars(ax, data, title):
+        for i, d in enumerate(dir_list):
+            offset = (i - (len(dir_list) - 1)/2) * bar_width
+            ax.bar(x + offset, data[:, i], width=bar_width, color=colors[i], label=os.path.basename(d))
+        ax.set_title(title)
+        ax.set_xticks(x)
+        ax.set_xticklabels(common_subfolders, rotation=45, ha='right')
+        ax.legend()
 
-    # (1, 1) Success Heatmap
-    cax = axs[1, 1].imshow(success_matrix, cmap="RdYlGn", aspect="auto", vmin=0, vmax=1)
+    # Subplot (0, 0) : Mean Distance
+    plot_bars(axs[0, 0], mean_dists, "Mean Distance")
+
+    # Subplot (0, 1) : AUC
+    plot_bars(axs[0, 1], aucs, "AUC")
+
+    # Subplot (1, 0) : Threshold 90%
+    plot_bars(axs[1, 0], thresholds_90, "Threshold 90%")
+
+    # Subplot (1, 1) : Success Heatmap (rows=subfolders, cols=experiments)
+    cax = axs[1, 1].imshow(successes, cmap="RdYlGn", aspect="auto", vmin=0, vmax=1)
     axs[1, 1].set_title("Success (1=True, 0=False)")
-    axs[1, 1].set_xticks([0, 1, 2])
-    axs[1, 1].set_xticklabels(["Random", "Weighted", "Percentage"])
-    axs[1, 1].set_yticks(range(len(common)))
-    axs[1, 1].set_yticklabels(common, rotation=45, ha='right')
+    axs[1, 1].set_xticks(range(len(dir_list)))
+    axs[1, 1].set_xticklabels([os.path.basename(d) for d in dir_list], rotation=45, ha='right')
+    axs[1, 1].set_yticks(range(len(common_subfolders)))
+    axs[1, 1].set_yticklabels(common_subfolders, rotation=45, ha='right')
     fig.colorbar(cax, ax=axs[1, 1], fraction=0.046, pad=0.04)
 
     plt.tight_layout()
     plt.savefig("comp_exp.png")
 
 if __name__ == "__main__":
-    dir_random = "out/new/RFMID/SIREN-1e-05-2000-150000_r"
-    dir_weighted = "out/new/RFMID/SIREN-1e-05-2000-150000_w"
-    dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    compare_experiments(dir_random, dir_weighted, dir_percentage)
+    """
+    Usage:
+        python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
+    """
+
+    dir_random = "out/new/first-weigthed/RFMID/SIREN-1e-05-2000-150000_r"
+    dir_weighe = "out/new/first-weigthed/RFMID/SIREN-1e-05-2000-150000_r+reg"
+    dir_reg = "out/new/first-weigthed/RFMID/SIREN-1e-06-2000-150000_p+reg"
+    # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
+    dirs = [dir_random, dir_weighe, dir_reg]
+    compare_experiments(dirs)

@@ -8,6 +8,7 @@ import cv2
 import SimpleITK as sitk
 import pystrum
 from scipy import integrate
+from skimage import io, filters
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../visualization'))
@@ -254,9 +255,6 @@ def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     return coordinate_grid
 
 def weight_mask(mask, fixed_image, save=False):
-    # Ensure inputs are on CPU
-    # mask = mask.cpu().float()
-    # img = fixed_image.cpu().float()
     
     # Apply histogram equalization
     img_np = fixed_image.cpu().numpy().astype(np.uint8)
@@ -275,13 +273,18 @@ def weight_mask(mask, fixed_image, save=False):
     grad_mag = np.sqrt(grad_x**2 + grad_y**2)
     
     disk_mask = get_optical_disk_mask(fixed_image.cpu().numpy())
-    
+    # vessel_mask = get_vessel_mask(fixed_image.cpu().numpy())
+    # vessel_mask = sift_based_vessel_mask(fixed_image.cpu().numpy())
     if disk_mask is None:
         disk_mask = np.zeros_like(grad_mag, dtype=grad_mag.dtype)
     else:
         disk_mask = disk_mask.astype(grad_mag.dtype)
     
-    grad_mag = grad_mag + (disk_mask)  # not workinggg, si multiplico si que va pero quiero sumarr
+    
+    factor = grad_mag.max() * 0.00025
+    
+    # grad_mag = grad_mag + (disk_mask)  # not workinggg, si multiplico si que va pero quiero sumarr
+    grad_mag += factor*disk_mask  # or some other factor
     
     # Apply mask
     grad_mag *= mask
@@ -291,13 +294,13 @@ def weight_mask(mask, fixed_image, save=False):
     contours, _ = cv2.findContours(mask_np, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(grad_mag, contours, -1, 0, thickness=5)
 
-    # # Increase the contrast by making darker parts more dark
-    # grad_mag = np.power(grad_mag, 1.5)  # the higher the power, the less the dark parts will be sampled
-    # # Dilate the bright parts of the gradient magnitude
-    # # grad_mag = cv2.morphologyEx(grad_mag, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    # # Apply Gaussian blur to the gradient magnitude
-    # grad_mag = cv2.GaussianBlur(grad_mag, (51, 51), 0)
-    # grad_mag = np.power(grad_mag, 1.25) 
+    # Increase the contrast by making darker parts more dark
+    grad_mag = np.power(grad_mag, 1.5)  # the higher the power, the less the dark parts will be sampled
+    # Dilate the bright parts of the gradient magnitude
+    # grad_mag = cv2.morphologyEx(grad_mag, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    # Apply Gaussian blur to the gradient magnitude
+    grad_mag = cv2.GaussianBlur(grad_mag, (75, 75), 0)
+    # grad_mag = np.power(grad_mag, 1.1) 
     
     # Normalize to create a probability distribution
     eps = 1e-8
@@ -313,15 +316,15 @@ def weight_mask(mask, fixed_image, save=False):
     
     return weights
 
-def get_optical_disk_mask(image, initial_thresh=175, max_iter=5):
+def get_optical_disk_mask(image, initial_thresh=175, max_iter=10):
     """
     Repeatedly thresholds the image, checking if the largest contour is within
     an acceptable size range. If not, adjusts threshold and tries again.
     """
     threshold_val = initial_thresh
-    desired_min_size = 25
-    desired_max_size = 600
-    step = 10
+    desired_min_size = 150
+    desired_max_size = 750
+    step = 5
 
     for _ in range(max_iter):
         # Threshold the image
@@ -331,7 +334,7 @@ def get_optical_disk_mask(image, initial_thresh=175, max_iter=5):
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if not contours:
-            print(f"No contours found at threshold={threshold_val}, adjusting upward.")
+            # print(f"No contours found at threshold={threshold_val}, adjusting upward.")
             threshold_val = min(threshold_val + step, 255)
             continue
         
@@ -341,13 +344,13 @@ def get_optical_disk_mask(image, initial_thresh=175, max_iter=5):
         print(f"Threshold={threshold_val} -> Largest contour size={size}")
 
         if size > desired_max_size:
-            print("Contour too big, increasing threshold.")
+            # print("Contour too big, increasing threshold.")
             threshold_val = min(threshold_val + step, 255)
         elif size < desired_min_size:
-            print("Contour too small, decreasing threshold.")
+            # print("Contour too small, decreasing threshold.")
             threshold_val = max(threshold_val - step, 0)
         else:
-            print("Contour size within desired range, creating mask.")
+            print(f"Contour size ={size}, creating mask at optic_disk_mask.png")
             # Create a mask for the optic disc
             mask = np.zeros(image.shape, np.uint8)
             cv2.drawContours(mask, [largest_contour], -1, 255, -1)
@@ -356,11 +359,63 @@ def get_optical_disk_mask(image, initial_thresh=175, max_iter=5):
             # Apply Gaussian blur to smooth the mask
             mask = cv2.GaussianBlur(mask, (25, 25), 0)
             cv2.imwrite('optic_disk_mask.png', mask)
-            print("Optic disk mask saved as 'optic_disk_mask.png'")
             return mask
     
     print("Unable to find suitable contour within iteration limit.")
     return None
+
+def get_vessel_mask(image):
+    
+    # Apply the Frangi filter to highlight vessels
+    frangi_image = filters.frangi(image, black_ridges=True, alpha=0.5, beta=0.25)
+    # sato_response = filters.sato(image, sigmas=[10.0], black_ridges=False)    
+
+    # # Normalize the Frangi filter output for better thresholding
+    frangi_image = cv2.normalize(frangi_image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    
+    # # Apply threshold to get a binary mask
+    # _, thresh = cv2.threshold(frangi_image, 100, 255, cv2.THRESH_BINARY)
+    
+    # Clean up the mask using morphological opening
+    # kernel = disk(3)
+    # mask = binary_opening(thresh, kernel)
+    
+    # Convert the mask to uint8 type
+    mask = (frangi_image * 255).astype('uint8')
+    cv2.imwrite('vessel_mask.png', mask)
+    print("Vessel mask saved as 'vessel_mask.png'")
+    return mask
+
+def sift_based_vessel_mask(image):
+
+    image = (image * 255).astype(np.uint8)
+    # Step 2: Initialize the SIFT detector
+    sift = cv2.SIFT_create()
+    
+    # Step 3: Detect keypoints and compute descriptors
+    keypoints, _ = sift.detectAndCompute(image, None)
+    
+    # Step 4: Create a blank mask
+    mask = np.zeros_like(image)
+    
+    # Step 5: Draw circles around keypoints
+    for kp in keypoints:
+        # Use keypoint size to determine the radius
+        radius = int(kp.size / 2)
+        # Only draw keypoints with a radius larger than a threshold
+        if radius > 5:  # Adjust the threshold as needed
+            # Get the keypoint's x and y coordinates
+            x, y = int(kp.pt[0]), int(kp.pt[1])
+            # Draw a circle on the mask
+            cv2.circle(mask, (x, y), radius, 255, -1)
+    # Step 6: Apply dilation to connect nearby keypoints
+    kernel = np.ones((5,5), np.uint8)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+    # Save the mask as an image
+    cv2.imwrite('sift_vessel_mask.png', mask)
+    print("SIFT-based vessel mask saved as 'sift_vessel_mask.png'")
+    # Step 7: Return the final mask
+    return mask
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])
@@ -759,10 +814,46 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
 
     return calculate_metrics(thresholds, success_rates, dists, og_dists, save_path)
 
-
 def clean_memory():
     torch.cuda.empty_cache()
     if torch.cuda.is_available():
         for obj in dir():
             if torch.is_tensor(eval(obj)):
                 del globals()[obj]
+
+def visualize_weighted_sampling(indices, coordinate_tensor, image_shape=(200, 200), save_path="weighted_sampling_heatmap.png"):
+    """
+    Visualize where points are being sampled from. Coordinates are in the [-1,1] range.
+    indices: the chosen sample indices (1D tensor).
+    coordinate_tensor: all valid coordinates (N,2).
+    image_shape: tuple (height,width) of the image.
+    save_path: file path for saving the figure.
+    """
+    
+    coords = coordinate_tensor[indices].detach().cpu().numpy()
+    
+    # Map [-1,1] to pixel coordinates [0, width-1 or height-1].
+    coords[:,0] = (coords[:,0] + 1) / 2 * (image_shape[0] - 1)
+    coords[:,1] = (coords[:,1] + 1) / 2 * (image_shape[1] - 1)
+    
+    # Round and clamp
+    coords = np.round(coords).astype(int)
+    coords[:,0] = np.clip(coords[:,0], 0, image_shape[0] - 1)
+    coords[:,1] = np.clip(coords[:,1], 0, image_shape[1] - 1)
+    
+    # Accumulate counts in a heatmap
+    heatmap = np.zeros(image_shape, dtype=np.float32)
+    for r, c in coords:
+        heatmap[r, c] += 1
+    
+    # Plot and save
+    plt.figure(figsize=(6,6))
+    plt.imshow(heatmap, cmap='hot', origin='upper')
+    plt.title("Weighted Sampling Heatmap")
+    plt.colorbar()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    
+    print(f"Heatmap saved at {save_path}")
+    
+    

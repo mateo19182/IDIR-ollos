@@ -341,17 +341,26 @@ class ImplicitRegistrator:
 
         # Regularization
         if self.jacobian_regularization:
-            loss += self.alpha_jacobian * regularizers.compute_jacobian_loss(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            jacobian_loss = regularizers.compute_jacobian_loss(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_jacobian * jacobian_loss
+            print(f"Jacobian Regularization: alpha={self.alpha_jacobian}, loss={jacobian_loss.item()}")
+
         if self.hyper_regularization:
-            loss += self.alpha_hyper * regularizers.compute_hyper_elastic_loss(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            hyper_loss = regularizers.compute_hyper_elastic_loss(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_hyper * hyper_loss
+            print(f"Hyper Regularization: alpha={self.alpha_hyper}, loss={hyper_loss.item()}")
+
         if self.bending_regularization:
-            loss += self.alpha_bending * regularizers.compute_bending_energy(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            bending_loss = regularizers.compute_bending_energy(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_bending * bending_loss
+            print(f"Bending Regularization: alpha={self.alpha_bending}, loss={bending_loss.item()}")
+
 
         # Perform the backpropagation and update the parameters accordingly
 
@@ -739,7 +748,10 @@ class ImplicitRegistrator2d:
         if self.sampling == "weighted":
             if self.weight_mask is None:
                 self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
-            indices = torch.multinomial( self.weight_mask, self.batch_size, replacement=True)
+                if self.weight_mask.sum() != 1:
+                    print("Weight mask not normalized")
+            indices = torch.multinomial(self.weight_mask, self.batch_size, replacement=True)
+
         elif self.sampling == "random":
             indices = torch.randperm(
             self.possible_coordinate_tensor.shape[0], device="cuda"
@@ -758,6 +770,8 @@ class ImplicitRegistrator2d:
             )[: random_batch_size]
             
             indices = torch.cat((weighted_indices, random_indices))
+        if epoch == 0:
+            general.visualize_weighted_sampling(indices, self.possible_coordinate_tensor)
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
@@ -782,19 +796,30 @@ class ImplicitRegistrator2d:
         # Relativation of output
         output_rel = torch.subtract(output, coordinate_tensor)
 
-        # Regularization
         if self.jacobian_regularization:
-            loss += self.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            jacobian_loss = regularizers.compute_jacobian_loss_2d(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_jacobian * jacobian_loss
+            if epoch % 50 == 0:
+                print(f"Jacobian Regularization loss={jacobian_loss.item()}")
+
         if self.hyper_regularization:
-            loss += self.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            hyper_loss = regularizers.compute_hyper_elastic_loss_2d(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_hyper * hyper_loss
+            if epoch % 50 == 0:
+                print(f"Hyper Regularization loss={hyper_loss.item()}")
+
         if self.bending_regularization:
-            loss += self.alpha_bending * regularizers.compute_bending_energy_2d(
-                coordinate_tensor, output_rel, batch_size=self.batch_size
+            bending_loss = regularizers.compute_bending_energy_2d(
+            coordinate_tensor, output_rel, batch_size=self.batch_size
             )
+            loss += self.alpha_bending * bending_loss
+            if epoch % 50 == 0:
+                print(f"Bending Regularization loss={bending_loss.item()}")
+
 
         # Perform the backpropagation and update the parameters accordingly
 
@@ -858,7 +883,7 @@ class ImplicitRegistrator2d:
 
         # Perform training iterations
         for i in tqdm.tqdm(range(epochs), desc="Training", unit="epoch"):
-            if (i + 1) % 25 == 0:  # Print every 10th epoch
+            if (i-1) % 25 == 0:
                 tqdm.tqdm.write(f"Epoch {i+1}/{epochs}, Loss: {self.loss_list[i-1]:.6f}")
             if self.save_checkpoints:
                 if i%500 == 0:
