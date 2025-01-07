@@ -68,7 +68,7 @@ class MLP(nn.Module):
         self.layers = []
         for i in range(self.n_layers):
             self.layers.append(nn.Linear(layers[i], layers[i + 1]))
-
+            # He/Kaiming initialization 
         # Combine all layers to one model
         self.layers = nn.Sequential(*self.layers)
 

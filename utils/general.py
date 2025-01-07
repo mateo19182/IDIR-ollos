@@ -584,9 +584,11 @@ def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
             break
 
     mean_dist = np.mean(dists)
+    og_mean_dist = np.mean(og_dists)
     
     metrics = os.path.join(save_path, 'metrics.txt')
     with open(metrics, 'w') as f:
+        f.write(f"Baseline Mean Distance: {og_mean_dist:.4f}\n")
         f.write(f"Mean Distance: {mean_dist:.4f}\n")
         f.write(f"Area Under the Curve (AUC): {auc:.4f}\n")
         if threshold_90 is not None:
@@ -594,10 +596,10 @@ def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
         if sum(dists)<(sum(og_dists)*0.99):
-            f.write("Successful\n")
+            f.write("improved\n")
             success = True
         else:
-            f.write("Unsuccessful\n")
+            f.write("did not improve\n")
             success = False
    
     return [auc, mean_dist, success_rates, success]
@@ -623,6 +625,13 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
 
     img = cv2.resize(img.reshape(vol_shape).numpy(), (2912, 2912))
 
+    fig.suptitle('Image Registration Results', fontsize=16)
+    fig.text(0.5, 0.02, 
+         'The grid transformation applied to the moving image produces the registered image.\nBlue points show transformed positions from white (fixed) to green (moving) landmarks.',
+         ha='center', fontsize=7)
+         
+    plt.subplots_adjust(bottom=0.11) 
+    
     axes[0].imshow(fixed_image, cmap='gray')
     axes[0].set_title('Fixed Image')    
     axes[1].imshow(img, cmap='gray')
@@ -643,7 +652,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
         #dy, dx = dfv[int(np.round(y*scale)), int(np.round(x*scale))]
         # oy, ox = dfs[int(np.round(y_truth*scale)), int(np.round(x_truth*scale))]
         # oy, ox = simple_bilinear_interpolation_point(dfs, x_truth, y_truth, scale)
-        dy, dx = simple_bilinear_interpolation_point(dfv, moving_x, moving_y, scale)
+        dy, dx = simple_bilinear_interpolation_point(dfv, fixed_x, fixed_y, scale)
 
         # dx = ox+(ox-dx)
         # dy = oy+(oy-dy)
@@ -657,18 +666,22 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
 
         axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
         axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
+        axes[1].scatter(x_res, y_res, c='b', s=1)  
+        axes[1].scatter(moving_x, moving_y, c='g', s=2)  
+        axes[1].annotate(f'{dist:.1f}', (x_res, y_res))
+        axes[1].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
+        axes[1].plot([x_res, fixed_x], [y_res, fixed_y], linestyle='-', color='white', linewidth=0.2)
         axes[2].scatter(moving_x, moving_y, c='g', s=2)  
-        axes[2].scatter(x_res, y_res, c='b', s=1)  
-        axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
-        axes[2].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
 
         dists.append(dist)
         og_dists.append(og_dist)
 
-    # with open(os.path.join(save_path,'dists.txt'), 'w') as f:
-    #     for item in dists:
-    #         f.write("%s\n" % item)
-    #     f.write("Mean: %s\n" % np.mean(dists))
+    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+        for i, o in zip(dists, og_dists):
+            f.write("og:%s | now:%s\n" % (o, i))
+        f.write("ogMean: %s\n" % np.mean(og_dists))
+        f.write("nowMean: %s\n" % np.mean(dists))
+        
         
     for threshold in thresholds:
         res = 0
@@ -701,8 +714,8 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     #     print("The images are the same.")
     # else:
     #     print("The images are different.")
-    # mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
-    # dfs = np.stack([mapy, mapx], axis=2)
+    mapx, mapy = np.meshgrid(np.arange(-1,1,2/vol_shape[0]), np.arange(-1,1,2/vol_shape[0]))
+    dfs = np.stack([mapy, mapx], axis=2)
     # mapx = mapx - 0.2
     # mapy = mapy
     # dfm = np.stack([mapy, mapx], axis=2)
@@ -755,19 +768,20 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         # dx = ox+(ox-dx)
         # dy = oy+(oy-dy)
 
-        x_res= (dx  + 1 ) * (1708 - 1) * 0.5
-        y_res= (dy  + 1 ) * (1708 - 1) * 0.5
+        x_res= (dx  + 1 ) * (vol_shape[0] - 1) * 0.5
+        y_res= (dy  + 1 ) * (vol_shape[0] - 1) * 0.5
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
         og_dist = np.linalg.norm(np.array((fixed_x, fixed_y)) - np.array((moving_x, moving_y)))
         
         axes[0].scatter(fixed_x, fixed_y, c='w', s=2)  
         axes[1].scatter(fixed_x, fixed_y, c='w', s=1) 
+        axes[1].scatter(x_res, y_res, c='b', s=1)  
+        axes[1].scatter(moving_x, moving_y, c='g', s=2)  
+        axes[1].annotate(f'{dist:.1f}', (x_res, y_res))
+        axes[1].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
+        axes[1].plot([x_res, fixed_x], [y_res, fixed_y], linestyle='-', color='white', linewidth=0.2)
         axes[2].scatter(moving_x, moving_y, c='g', s=2)  
-        axes[2].scatter(x_res, y_res, c='b', s=1)  
-        axes[2].annotate(f'{dist:.2f}', (x_res, y_res))
-        axes[2].plot([moving_x, x_res], [moving_y, y_res], linestyle='-', color='red', linewidth=0.2)
-        # axes[2].plot([fixed_x, x_res], [fixed_y, y_res], linestyle='-', color='yellow', linewidth=0.2)
 
         dists.append(dist)
         og_dists.append(og_dist)

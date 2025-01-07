@@ -747,7 +747,7 @@ class ImplicitRegistrator2d:
 
         if self.sampling == "weighted":
             if self.weight_mask is None:
-                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=False)
                 if self.weight_mask.sum() != 1:
                     print("Weight mask not normalized")
             indices = torch.multinomial(self.weight_mask, self.batch_size, replacement=True)
@@ -757,12 +757,12 @@ class ImplicitRegistrator2d:
             self.possible_coordinate_tensor.shape[0], device="cuda"
             )[: self.batch_size]
         elif self.sampling == "percentage":
-            weighted_percentage = 0.5
+            weighted_percentage = 0.25
             weighted_batch_size = int(self.batch_size * weighted_percentage)
             random_batch_size = self.batch_size - weighted_batch_size
             
             if self.weight_mask is None:
-                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=True)
+                self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=False)
             weighted_indices = torch.multinomial(self.weight_mask, weighted_batch_size, replacement=True)
             
             random_indices = torch.randperm(
@@ -770,7 +770,7 @@ class ImplicitRegistrator2d:
             )[: random_batch_size]
             
             indices = torch.cat((weighted_indices, random_indices))
-        if epoch == 0:
+        if epoch == 0 and self.sampling == ("weighted" or "percentage"):
             general.visualize_weighted_sampling(indices, self.possible_coordinate_tensor)
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
@@ -797,26 +797,26 @@ class ImplicitRegistrator2d:
         output_rel = torch.subtract(output, coordinate_tensor)
 
         if self.jacobian_regularization:
-            jacobian_loss = regularizers.compute_jacobian_loss_2d(
+            jacobian_loss = self.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
             coordinate_tensor, output_rel, batch_size=self.batch_size
             )
-            loss += self.alpha_jacobian * jacobian_loss
+            loss +=  jacobian_loss
             if epoch % 50 == 0:
                 print(f"Jacobian Regularization loss={jacobian_loss.item()}")
 
         if self.hyper_regularization:
-            hyper_loss = regularizers.compute_hyper_elastic_loss_2d(
+            hyper_loss = self.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
             coordinate_tensor, output_rel, batch_size=self.batch_size
             )
-            loss += self.alpha_hyper * hyper_loss
+            loss +=  hyper_loss
             if epoch % 50 == 0:
-                print(f"Hyper Regularization loss={hyper_loss.item()}")
+                print(f"Hyper Regularization loss={self.hyper_loss.item()}")
 
         if self.bending_regularization:
-            bending_loss = regularizers.compute_bending_energy_2d(
+            bending_loss = self.alpha_bending * regularizers.compute_bending_energy_2d(
             coordinate_tensor, output_rel, batch_size=self.batch_size
             )
-            loss += self.alpha_bending * bending_loss
+            loss +=  bending_loss
             if epoch % 50 == 0:
                 print(f"Bending Regularization loss={bending_loss.item()}")
 

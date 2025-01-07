@@ -134,9 +134,10 @@ if __name__ == "__main__":
         python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
     """
 
-    dir_random = "out/new/first-weigthed/RFMID/SIREN-1e-05-2000-150000_r"
-    dir_weighe = "out/new/first-weigthed/RFMID/SIREN-1e-05-2000-150000_r+reg"
-    dir_reg = "out/new/first-weigthed/RFMID/SIREN-1e-06-2000-150000_p+reg"
+    dir_random = "out/new/good/FIRE_baseline"
+    # dir_weighe = "out/new/FIRE/MLP-1e-05-2000-150000_A_p"
+    # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [dir_random, dir_weighe, dir_reg]
+    dirs = [dir_random]
     compare_experiments(dirs)
+    print("Comparison file saved as 'comp_exp.png'")    
