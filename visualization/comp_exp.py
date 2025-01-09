@@ -147,14 +147,14 @@ if __name__ == "__main__":
         python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
     """
 
-    dir_RFMID_random_MLP = "out/new/good/FIRE/MLP-1e-05-2000-150000_all_r_baseline"
-    dir_RFMID_weighted_MLP = "out/new/good/FIRE/SIREN-1e-05-1500-100000_all_++reg"
-    # dir_RFMID_random_SIREN = "out/new/good/RFMID/SIREN-1e-05-2000-150000_r+reg"
-    # dir_RFMID_weighted_SIREN = "out/new/good/RFMID/SIREN-1e-06-2000-150000_p+reg"
-    # dir_RFMID_baseline = "out/new/good/RFMID/RFMID_baseline"
-    # dir_weighe = "out/new/FIRE/MLP-1e-05-2000-150000_A_p"
+    dir_1 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline"
+    dir_2 = "out/new/good/FIRE/S/MLP-1e-05-2500-150000_S_r_+reg"
+    dir_3 = "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg"
+    dir_4 = "out/new/good/FIRE/S/SIREN-1e-05-2000-140000_S_-reg"
+    # dir_5 = "out/new/good/FIRE/A/SIREN-1e-05-1500-100000_A_++reg"
+    # dir_6 = "out/new/good/FIRE/A/SIREN-1e-05-2000-140000_A_-reg"
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [ dir_RFMID_random_MLP, dir_RFMID_weighted_MLP]
+    dirs = [dir_1, dir_2, dir_3]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")    
