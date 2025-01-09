@@ -25,16 +25,16 @@ for lr in learning_rates:
         kwargs["lr"] = lr
         kwargs["batch_size"] = batch_size   #10000
         kwargs["sampling"] = "random"  # random, weighted, percentage
-        kwargs["epochs"] = 2000 #2500
-        kwargs["patience"] = 500
-        kwargs["image_shape"] = [1708, 1708]   #RFMID doesnt put points right on other resolutions...
+        kwargs["epochs"] = 2500 #2500
+        kwargs["patience"] = 200
+        kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
-        kwargs["hyper_regularization"] = False
-        kwargs["alpha_hyper"] = 0.25   #0.25
+        kwargs["hyper_regularization"] = True
+        kwargs["alpha_hyper"] = 0.1   #0.25
         kwargs["jacobian_regularization"] = True
-        kwargs["alpha_jacobian"] = 0.1  #0.05 default
+        kwargs["alpha_jacobian"] =  0.1  #0.05 default
         kwargs["bending_regularization"] = False
-        kwargs["alpha_bending"] = 10.0   #10.0
+        kwargs["alpha_bending"] = 150.0   #10.0
                 
         kwargs["save_checkpoints"] = False
 
@@ -46,13 +46,18 @@ for lr in learning_rates:
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
             # for i in range(0, 50):
-            for i in range(0, 14+49+71):
+            for i in range(14, 14+49+71):
                 result = general.load_image_FIRE(i, (data_dir))
                 if result is None:
                     continue
                 else:
                     (fixed_image, moving_image, ground_truth, fixed, moving) = result
-                kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
+                if i<14:
+                    cat = "_A"
+                elif i<73: 
+                    cat = "_P"
+                else: cat = "_S"
+                kwargs["save_folder"]= os.path.join(out_dir, str(i+1) + cat + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running FIRE {i}")
                 ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)

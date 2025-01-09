@@ -770,7 +770,8 @@ class ImplicitRegistrator2d:
             )[: random_batch_size]
             
             indices = torch.cat((weighted_indices, random_indices))
-        if epoch == 0 and self.sampling == ("weighted" or "percentage"):
+        if epoch == 0 and (self.sampling == "percentage" or self.sampling == "weighted"):
+            print("Weighted sampling")
             general.visualize_weighted_sampling(indices, self.possible_coordinate_tensor)
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
@@ -810,7 +811,7 @@ class ImplicitRegistrator2d:
             )
             loss +=  hyper_loss
             if epoch % 50 == 0:
-                print(f"Hyper Regularization loss={self.hyper_loss.item()}")
+                print(f"Hyper Regularization loss={hyper_loss.item()}")
 
         if self.bending_regularization:
             bending_loss = self.alpha_bending * regularizers.compute_bending_energy_2d(

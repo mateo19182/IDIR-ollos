@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 
 def parse_metrics_file(path):
     """Parse metrics.txt and return dict with mean_distance, auc, threshold_90."""
-    stats = {"mean_distance": None, "auc": None, "threshold_90": None}
+    stats = {"bs_mean_distance": None, "mean_distance": None, "auc": None, "threshold_90": None}
     try:
         with open(path, "r") as f:
             for line in f:
                 line = line.strip()
+                if line.startswith("Baseline Mean Distance:"):
+                    stats["bs_mean_distance"] = float(line.split(":")[1])
                 if line.startswith("Mean Distance:"):
                     stats["mean_distance"] = float(line.split(":")[1])
                 elif line.startswith("Area Under the Curve (AUC):"):
@@ -20,6 +22,8 @@ def parse_metrics_file(path):
                         stats["threshold_90"] = float(val)
                     else:
                         stats["threshold_90"] = None
+                elif line.startswith("did not improve"):
+                    stats["threshold_90"] = None   
     except FileNotFoundError:
         pass
     return stats
@@ -42,6 +46,7 @@ def gather_experiment_data(exp_dir):
     """Traverse subfolders in exp_dir, parse metrics, return list of stats (dict)."""
     data = []
     for sub in os.listdir(exp_dir):
+        # print(sub)
         sub_path = os.path.join(exp_dir, sub)
         if os.path.isdir(sub_path):
             mfile = os.path.join(sub_path, "metrics.txt")
@@ -66,18 +71,20 @@ def compare_experiments(dir_list):
     sets_of_subs = []
     for d in dir_list:
         sets_of_subs.append(set(x["name"] for x in experiments[d]))
-    common_subfolders = sorted(set.intersection(*sets_of_subs))
-
+    common_subfolders = sorted(set.intersection(*sets_of_subs), key=lambda x: int(x.split('_')[0]))
+    print(f"Common subfolders: {common_subfolders}")
     # Build dictionaries by name for easy lookup
     exp_dicts_by_name = {d: {x["name"]: x for x in experiments[d]} for d in dir_list}
 
     # For each subfolder in 'common_subfolders', gather metrics from each directory
+    bs_mean_dists = []
     mean_dists = []
     aucs = []
     thresholds_90 = []
     successes = []
 
     for sub in common_subfolders:
+        bs_mean_dists.append([exp_dicts_by_name[d][sub]["bs_mean_distance"] for d in dir_list])
         mean_dists.append([exp_dicts_by_name[d][sub]["mean_distance"] for d in dir_list])
         aucs.append([exp_dicts_by_name[d][sub]["auc"] for d in dir_list])
         thr_vals = [exp_dicts_by_name[d][sub]["threshold_90"] or 0 for d in dir_list]
@@ -85,6 +92,7 @@ def compare_experiments(dir_list):
         successes.append([1 if exp_dicts_by_name[d][sub]["threshold_90"] is not None else 0 for d in dir_list])
 
     # Convert to numpy arrays for convenience
+    bs_mean_dists = np.array(bs_mean_dists)  # shape: (num_subfolders, num_dirs)
     mean_dists = np.array(mean_dists)      # shape: (num_subfolders, num_dirs)
     aucs = np.array(aucs)                  # shape: (num_subfolders, num_dirs)
     thresholds_90 = np.array(thresholds_90)# shape: (num_subfolders, num_dirs)
@@ -92,8 +100,7 @@ def compare_experiments(dir_list):
 
     x = np.arange(len(common_subfolders))
     bar_width = 0.8 / len(dir_list)  # keep bars within total width 0.8
-    fig, axs = plt.subplots(2, 2, figsize=(14, 10))
-
+    fig, axs = plt.subplots(2, 2, figsize=(38, 22))
     # Colors
     colors = plt.cm.tab10(np.linspace(0, 1, len(dir_list)))
 
@@ -104,13 +111,19 @@ def compare_experiments(dir_list):
             ax.bar(x + offset, data[:, i], width=bar_width, color=colors[i], label=os.path.basename(d))
         ax.set_title(title)
         ax.set_xticks(x)
-        ax.set_xticklabels(common_subfolders, rotation=45, ha='right')
+        ax.set_xticklabels(common_subfolders, rotation=45, ha='right', fontsize=8)
         ax.legend()
 
     # Subplot (0, 0) : Mean Distance
     plot_bars(axs[0, 0], mean_dists, "Mean Distance")
-
+    
+    # bs_mean_dists plot
+    # for i, d in enumerate(dir_list):
+    #     offset = (i - (len(dir_list) - 1)/2) * bar_width
+    #     axs[0, 0].bar(x + offset, bs_mean_dists[:, i], width=bar_width, color=colors[i], alpha=0.5, label=f"{os.path.basename(d)} (Baseline)")
+    # axs[0, 0].legend()
     # Subplot (0, 1) : AUC
+    
     plot_bars(axs[0, 1], aucs, "AUC")
 
     # Subplot (1, 0) : Threshold 90%
@@ -134,10 +147,14 @@ if __name__ == "__main__":
         python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
     """
 
-    dir_random = "out/new/good/FIRE_baseline"
+    dir_RFMID_random_MLP = "out/new/good/FIRE/MLP-1e-05-2000-150000_all_r_baseline"
+    dir_RFMID_weighted_MLP = "out/new/good/FIRE/SIREN-1e-05-1500-100000_all_++reg"
+    # dir_RFMID_random_SIREN = "out/new/good/RFMID/SIREN-1e-05-2000-150000_r+reg"
+    # dir_RFMID_weighted_SIREN = "out/new/good/RFMID/SIREN-1e-06-2000-150000_p+reg"
+    # dir_RFMID_baseline = "out/new/good/RFMID/RFMID_baseline"
     # dir_weighe = "out/new/FIRE/MLP-1e-05-2000-150000_A_p"
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [dir_random]
+    dirs = [ dir_RFMID_random_MLP, dir_RFMID_weighted_MLP]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")    
