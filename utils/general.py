@@ -10,6 +10,7 @@ import pystrum
 from scipy import integrate
 from skimage import io, filters
 import sys
+import math
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../visualization'))
 import fig_vis
@@ -234,6 +235,76 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
     coordinate_tensor = coordinate_tensor.cuda()
     return coordinate_tensor
+
+def make_uniform_coordinate_tensor_old(mask, dims, batch_size):
+    # Step 1: Determine the mask radius
+    mask = np.ceil(mask).clip(0, 1)
+    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
+    coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
+    coordinate_tensor = coordinate_tensor.view([-1, 2])
+    masked_coords = coordinate_tensor[mask.flatten() > 0, :]
+    mask_radius = torch.norm(masked_coords, dim=1).max()
+
+    # Step 2: Generate Fibonacci lattice points
+    indices = torch.arange(0, batch_size, dtype=torch.float32) + 0.5
+    phi = (1 + math.sqrt(5)) / 2  # Golden ratio
+    r = torch.sqrt(indices / batch_size) * mask_radius
+    theta = 2 * math.pi * indices / (phi ** 2)
+
+    # Step 3: Convert to Cartesian coordinates
+    x_coords = r * torch.cos(theta)
+    y_coords = r * torch.sin(theta)
+    even_coords = torch.stack((x_coords, y_coords), dim=1)
+
+    return even_coords.cuda()
+
+def make_uniform_coordinate_tensor(mask, dims, batch_size):
+    # Step 1: Determine the mask radius and valid region
+    mask = np.ceil(mask).clip(0, 1)
+    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
+    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
+    coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
+    coordinate_tensor = coordinate_tensor.view([-1, 2])
+    masked_coords = coordinate_tensor[mask.flatten() > 0, :]
+    mask_radius = torch.norm(masked_coords, dim=1).max()
+
+    # Step 2: Generate Fibonacci lattice points with small random perturbation
+    indices = torch.arange(0, batch_size, dtype=torch.float32) + 0.5
+    phi = (1 + math.sqrt(5)) / 2  # Golden ratio
+    r = torch.sqrt(indices / batch_size) * mask_radius
+    theta = 2 * math.pi * indices / (phi ** 2)
+    
+    # Add small random perturbation
+    r = r + torch.randn_like(r) * 0.005  # Small radial perturbation
+    theta = theta + torch.randn_like(theta) * 0.005  # Small angular perturbation
+
+    # Step 3: Convert to Cartesian coordinates
+    x_coords = r * torch.cos(theta)
+    y_coords = r * torch.sin(theta)
+    even_coords = torch.stack((x_coords, y_coords), dim=1)
+
+    # Step 4: Map coordinates back to mask indices
+    x_indices = ((even_coords[:, 0] + 1) / 2 * (dims[0] - 1)).long().clamp(0, dims[0] - 1)
+    y_indices = ((even_coords[:, 1] + 1) / 2 * (dims[1] - 1)).long().clamp(0, dims[1] - 1)
+
+    # Step 5: Find points outside the mask and project them to the closest valid point
+    mask = torch.from_numpy(mask)
+    valid_mask = mask[x_indices, y_indices] > 0
+    invalid_indices = torch.where(~valid_mask)[0]
+
+    if len(invalid_indices) > 0:
+        valid_points = coordinate_tensor[mask.flatten() > 0, :]
+        invalid_points = even_coords[invalid_indices]
+        distances = torch.cdist(invalid_points, valid_points, p=2)
+        closest_valid_indices = torch.argmin(distances, dim=1)
+        closest_valid_points = valid_points[closest_valid_indices]
+        even_coords[invalid_indices] = closest_valid_points
+
+    # Step 6: Select the required number of points
+    selected_coords = even_coords[:batch_size]
+
+    return selected_coords.cuda()
 
 def make_coordinate_tensor_2d(dims=(28, 28), gpu=True):
     """Make a 2D coordinate grid."""
@@ -835,7 +906,7 @@ def clean_memory():
             if torch.is_tensor(eval(obj)):
                 del globals()[obj]
 
-def visualize_weighted_sampling(indices, coordinate_tensor, image_shape=(200, 200), save_path="weighted_sampling_heatmap.png"):
+def visualize_weighted_sampling(indices, coordinate_tensor,mask, image_shape=(200, 200), save_path="weighted_sampling_heatmap.png"):
     """
     Visualize where points are being sampled from. Coordinates are in the [-1,1] range.
     indices: the chosen sample indices (1D tensor).
@@ -844,6 +915,9 @@ def visualize_weighted_sampling(indices, coordinate_tensor, image_shape=(200, 20
     save_path: file path for saving the figure.
     """
     
+    mask = cv2.resize(mask, (image_shape[1], image_shape[0]))
+    mask = (mask > 0).astype(np.uint8)
+
     coords = coordinate_tensor[indices].detach().cpu().numpy()
     
     # Map [-1,1] to pixel coordinates [0, width-1 or height-1].
@@ -856,13 +930,20 @@ def visualize_weighted_sampling(indices, coordinate_tensor, image_shape=(200, 20
     coords[:,1] = np.clip(coords[:,1], 0, image_shape[1] - 1)
     
     # Accumulate counts in a heatmap
-    heatmap = np.zeros(image_shape, dtype=np.float32)
+    # heatmap = np.zeros(image_shape, dtype=np.float32)
     for r, c in coords:
-        heatmap[r, c] += 1
+        mask[r, c] += 1
     
     # Plot and save
     plt.figure(figsize=(6,6))
-    plt.imshow(heatmap, cmap='hot', origin='upper')
+    
+    # First show the mask in grayscale
+    
+    # Overlay the heatmap with some transparency
+    # plt.imshow(heatmap, cmap='hot', alpha=1)
+    
+    plt.imshow(mask, cmap='hot', alpha=1)
+
     plt.title("Weighted Sampling Heatmap")
     plt.colorbar()
     plt.savefig(save_path, dpi=150)

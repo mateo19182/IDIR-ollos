@@ -100,7 +100,7 @@ def compare_experiments(dir_list):
 
     x = np.arange(len(common_subfolders))
     bar_width = 0.8 / len(dir_list)  # keep bars within total width 0.8
-    fig, axs = plt.subplots(2, 2, figsize=(38, 22))
+    fig, axs = plt.subplots(2, 2, figsize=(30, 18))
     # Colors
     colors = plt.cm.tab10(np.linspace(0, 1, len(dir_list)))
 
@@ -117,13 +117,25 @@ def compare_experiments(dir_list):
     # Subplot (0, 0) : Mean Distance
     plot_bars(axs[0, 0], mean_dists, "Mean Distance")
     
-    # bs_mean_dists plot
-    # for i, d in enumerate(dir_list):
-    #     offset = (i - (len(dir_list) - 1)/2) * bar_width
-    #     axs[0, 0].bar(x + offset, bs_mean_dists[:, i], width=bar_width, color=colors[i], alpha=0.5, label=f"{os.path.basename(d)} (Baseline)")
-    # axs[0, 0].legend()
-    # Subplot (0, 1) : AUC
+    # Calculate statistics
+    success_counts = np.sum(successes, axis=0)
+    total_cases = successes.shape[0]
+    success_rates = success_counts / total_cases * 100
+
+    # Add stats text to figure
+    stats_text = ""
+    for i, d in enumerate(dir_list):
+        stats_text += f"{os.path.basename(d)}: "
+        stats_text += f"{success_rates[i]:.1f}% ({success_counts[i]}/{total_cases})\n"
+
+    # Add text box to figure
+    fig.text(0.75, 0.35, stats_text, 
+             bbox=dict(facecolor='white', alpha=0.5, pad=1.0),
+             fontsize=25,
+             verticalalignment='center',
+             horizontalalignment='center')
     
+    # Subplot (0, 1) : AUC
     plot_bars(axs[0, 1], aucs, "AUC")
 
     # Subplot (1, 0) : Threshold 90%
@@ -131,6 +143,9 @@ def compare_experiments(dir_list):
 
     # Subplot (1, 1) : Success Heatmap (rows=subfolders, cols=experiments)
     cax = axs[1, 1].imshow(successes, cmap="RdYlGn", aspect="auto", vmin=0, vmax=1)
+    
+    
+    
     axs[1, 1].set_title("Success (1=True, 0=False)")
     axs[1, 1].set_xticks(range(len(dir_list)))
     axs[1, 1].set_xticklabels([os.path.basename(d) for d in dir_list], rotation=45, ha='right')
@@ -151,10 +166,10 @@ if __name__ == "__main__":
     dir_2 = "out/new/good/FIRE/S/MLP-1e-05-2500-150000_S_r_+reg"
     dir_3 = "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg"
     dir_4 = "out/new/good/FIRE/S/SIREN-1e-05-2000-140000_S_-reg"
-    # dir_5 = "out/new/good/FIRE/A/SIREN-1e-05-1500-100000_A_++reg"
-    # dir_6 = "out/new/good/FIRE/A/SIREN-1e-05-2000-140000_A_-reg"
+    dir_5 = "out/new/good/FIRE/A/SIREN-1e-05-1500-100000_A_++reg"
+    dir_6 = "out/new/good/FIRE/A/SIREN-1e-05-2000-140000_A_-reg"
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
     dirs = [dir_1, dir_2, dir_3]
     compare_experiments(dirs)
-    print("Comparison file saved as 'comp_exp.png'")    
+    print("Comparison file saved as 'comp_exp.png'")

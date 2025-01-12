@@ -11,6 +11,7 @@ from networks import networks
 from objectives import ncc
 from objectives import ssim
 from objectives import regularizers
+import math, random
 
 
 class ImplicitRegistrator:
@@ -234,6 +235,7 @@ class ImplicitRegistrator:
         self.possible_coordinate_tensor = general.make_masked_coordinate_tensor(
             self.mask, self.fixed_image.shape
         )
+        
 
         if self.gpu:
             self.moving_image = self.moving_image.cuda()
@@ -654,6 +656,10 @@ class ImplicitRegistrator2d:
         self.batch_size = (
             kwargs["batch_size"] if "batch_size" in kwargs else self.args["batch_size"]
         )
+        self.og_batch_size = self.batch_size
+        self.phases = kwargs["phases"] if "phases" in kwargs else self.args["phases"]
+        self.prev_phase = self.phases +1
+        self.phase_length = self.epochs / self.phases
 
         self.sampling = (
             kwargs["sampling"] if "sampling" in kwargs else self.args["sampling"]
@@ -664,7 +670,7 @@ class ImplicitRegistrator2d:
         self.fixed_image = fixed_image
 
         self.possible_coordinate_tensor = general.make_masked_coordinate_tensor_2d(
-            self.mask, self.fixed_image.shape
+                self.mask, self.fixed_image.shape
         )
         #print(self.possible_coordinate_tensor.shape) #torch.Size([2912, 2912])
         if self.gpu:
@@ -700,7 +706,7 @@ class ImplicitRegistrator2d:
         self.args["layers"] = [2, 256, 256, 256, 2]
         self.args["velocity_steps"] = 1  
         self.args["sampling"] = "uniform"  #uniform, random
-
+        self.args["phases"] = 1
         # Define argument defaults specific to this class
         self.args["output_regularization"] = False
         self.args["alpha_output"] = 0.2
@@ -744,14 +750,23 @@ class ImplicitRegistrator2d:
         self.network.train()
 
         loss = 0
+        
+        #batch size schedule
+        current_phase = self.phases - max(int(epoch / self.phase_length), 0)
+        if current_phase != self.prev_phase:
+            self.batch_size = int(self.og_batch_size ** (1/(2**(current_phase-1))))
+            self.prev_phase = current_phase
+            print(f"Current epoch: {epoch} phase: {current_phase}, batch size: {self.batch_size}")
 
+
+        
+        #sampling strategy
         if self.sampling == "weighted":
             if self.weight_mask is None:
                 self.weight_mask = general.weight_mask(self.mask, self.fixed_image, save=False)
                 if self.weight_mask.sum() != 1:
                     print("Weight mask not normalized")
             indices = torch.multinomial(self.weight_mask, self.batch_size, replacement=True)
-
         elif self.sampling == "random":
             indices = torch.randperm(
             self.possible_coordinate_tensor.shape[0], device="cuda"
@@ -770,9 +785,13 @@ class ImplicitRegistrator2d:
             )[: random_batch_size]
             
             indices = torch.cat((weighted_indices, random_indices))
-        if epoch == 0 and (self.sampling == "percentage" or self.sampling == "weighted"):
-            print("Weighted sampling")
-            general.visualize_weighted_sampling(indices, self.possible_coordinate_tensor)
+        elif self.sampling == "uniform":  # not workingg
+            self.possible_coordinate_tensor = general.make_uniform_coordinate_tensor(self.mask, self.fixed_image.shape, self.batch_size)
+            # self.possible_coordinate_tensor = general.make_coordinate_tensor_2d(self.fixed_image.shape)  # doing this might work but is ugly...
+            # indices = torch.arange(0, self.possible_coordinate_tensor.shape[0], self.possible_coordinate_tensor.shape[0]/self.batch_size, device='cuda').int()   # this would work if the coordinate tensor was not a circle...
+            indices = torch.arange(self.possible_coordinate_tensor.shape[0], device='cuda')
+        if epoch == 0 and True:
+            general.visualize_weighted_sampling(indices, self.possible_coordinate_tensor, self.mask)
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
         coordinate_tensor = coordinate_tensor.requires_grad_(True)
