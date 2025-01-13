@@ -3,10 +3,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 import torch
-import kornia.geometry.linalg as kn
 import cv2
 import SimpleITK as sitk
-import pystrum
 from scipy import integrate
 from skimage import io, filters
 import sys
@@ -16,205 +14,205 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../visualization'))
 import fig_vis
 
 
-def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
-    landmarks_pred = np.round(landmarks_pred)
-    landmarks_gt = np.round(landmarks_gt)
+# def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
+#     landmarks_pred = np.round(landmarks_pred)
+#     landmarks_gt = np.round(landmarks_gt)
 
-    difference = landmarks_pred - landmarks_gt
-    difference = np.abs(difference)
-    difference = difference * voxel_size
+#     difference = landmarks_pred - landmarks_gt
+#     difference = np.abs(difference)
+#     difference = difference * voxel_size
 
-    means = np.mean(difference, 0)
-    stds = np.std(difference, 0)
+#     means = np.mean(difference, 0)
+#     stds = np.std(difference, 0)
 
-    difference = np.square(difference)
-    difference = np.sum(difference, 1)
-    difference = np.sqrt(difference)
+#     difference = np.square(difference)
+#     difference = np.sum(difference, 1)
+#     difference = np.sqrt(difference)
 
-    means = np.append(means, np.mean(difference))
-    stds = np.append(stds, np.std(difference))
+#     means = np.append(means, np.mean(difference))
+#     stds = np.append(stds, np.std(difference))
 
-    means = np.round(means, 2)
-    stds = np.round(stds, 2)
+#     means = np.round(means, 2)
+#     stds = np.round(stds, 2)
 
-    means = means[::-1]
-    stds = stds[::-1]
+#     means = means[::-1]
+#     stds = stds[::-1]
 
-    return means, stds
+#     return means, stds
 
-def compute_landmarks(network, landmarks_pre, image_size):
-    scale_of_axes = [(0.5 * s) for s in image_size]
+# def compute_landmarks(network, landmarks_pre, image_size):
+#     scale_of_axes = [(0.5 * s) for s in image_size]
 
-    coordinate_tensor = torch.FloatTensor(landmarks_pre / (scale_of_axes)) - 1.0
+#     coordinate_tensor = torch.FloatTensor(landmarks_pre / (scale_of_axes)) - 1.0
 
-    output = network(coordinate_tensor.cuda())
+#     output = network(coordinate_tensor.cuda())
 
-    delta = output.cpu().detach().numpy() * (scale_of_axes)
+#     delta = output.cpu().detach().numpy() * (scale_of_axes)
 
-    return landmarks_pre + delta, delta
+#     return landmarks_pre + delta, delta
 
-def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
-    # Size of data, per image pair
-    image_sizes = [
-        0,
-        [94, 256, 256],
-        [112, 256, 256],
-        [104, 256, 256],
-        [99, 256, 256],
-        [106, 256, 256],
-        [128, 512, 512],
-        [136, 512, 512],
-        [128, 512, 512],
-        [128, 512, 512],
-        [120, 512, 512],
-    ]
+# def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
+#     # Size of data, per image pair
+#     image_sizes = [
+#         0,
+#         [94, 256, 256],
+#         [112, 256, 256],
+#         [104, 256, 256],
+#         [99, 256, 256],
+#         [106, 256, 256],
+#         [128, 512, 512],
+#         [136, 512, 512],
+#         [128, 512, 512],
+#         [128, 512, 512],
+#         [120, 512, 512],
+#     ]
 
-    # Scale of data, per image pair
-    voxel_sizes = [
-        0,
-        [2.5, 0.97, 0.97],
-        [2.5, 1.16, 1.16],
-        [2.5, 1.15, 1.15],
-        [2.5, 1.13, 1.13],
-        [2.5, 1.1, 1.1],
-        [2.5, 0.97, 0.97],
-        [2.5, 0.97, 0.97],
-        [2.5, 0.97, 0.97],
-        [2.5, 0.97, 0.97],
-        [2.5, 0.97, 0.97],
-    ]
+#     # Scale of data, per image pair
+#     voxel_sizes = [
+#         0,
+#         [2.5, 0.97, 0.97],
+#         [2.5, 1.16, 1.16],
+#         [2.5, 1.15, 1.15],
+#         [2.5, 1.13, 1.13],
+#         [2.5, 1.1, 1.1],
+#         [2.5, 0.97, 0.97],
+#         [2.5, 0.97, 0.97],
+#         [2.5, 0.97, 0.97],
+#         [2.5, 0.97, 0.97],
+#         [2.5, 0.97, 0.97],
+#     ]
 
-    shape = image_sizes[variation]
+#     shape = image_sizes[variation]
 
-    folder = folder + str(variation) + r"Pack" + os.path.sep
+#     folder = folder + str(variation) + r"Pack" + os.path.sep
 
-    # Images
-    dtype = np.dtype(np.int16)
+#     # Images
+#     dtype = np.dtype(np.int16)
 
-#   with open(folder + r"Images/case" + str(variation) + "_T00_s.img", "rb") as f:
-    with open(folder + r"Images/case" + str(variation) + "_T00.img", "rb") as f:
-        data = np.fromfile(f, dtype)
-    image_insp = data.reshape(shape)
+# #   with open(folder + r"Images/case" + str(variation) + "_T00_s.img", "rb") as f:
+#     with open(folder + r"Images/case" + str(variation) + "_T00.img", "rb") as f:
+#         data = np.fromfile(f, dtype)
+#     image_insp = data.reshape(shape)
 
-#   with open(folder + r"Images/case" + str(variation) + "_T50_s.img", "rb") as f:
-    with open(folder + r"Images/case" + str(variation) + "_T50.img", "rb") as f:
-        data = np.fromfile(f, dtype)
-    image_exp = data.reshape(shape)
+# #   with open(folder + r"Images/case" + str(variation) + "_T50_s.img", "rb") as f:
+#     with open(folder + r"Images/case" + str(variation) + "_T50.img", "rb") as f:
+#         data = np.fromfile(f, dtype)
+#     image_exp = data.reshape(shape)
 
-#   imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00_s.mhd")
-    imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00.mhd")
-    print(imgsitk_in)
-    mask = np.clip(sitk.GetArrayFromImage(imgsitk_in), 0, 1)
-    image_insp = torch.FloatTensor(image_insp)
-    image_exp = torch.FloatTensor(image_exp)
+# #   imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00_s.mhd")
+#     imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00.mhd")
+#     print(imgsitk_in)
+#     mask = np.clip(sitk.GetArrayFromImage(imgsitk_in), 0, 1)
+#     image_insp = torch.FloatTensor(image_insp)
+#     image_exp = torch.FloatTensor(image_exp)
 
-    # Landmarks
-    with open(
-        folder + r"ExtremePhases/Case" + str(variation) + "_300_T00_xyz.txt"
-    ) as f:
-        landmarks_insp = np.array(
-            [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
-        )
+#     # Landmarks
+#     with open(
+#         folder + r"ExtremePhases/Case" + str(variation) + "_300_T00_xyz.txt"
+#     ) as f:
+#         landmarks_insp = np.array(
+#             [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
+#         )
 
-    with open(
-        folder + r"ExtremePhases/Case" + str(variation) + "_300_T50_xyz.txt"
-    ) as f:
-        landmarks_exp = np.array(
-            [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
-        )
+#     with open(
+#         folder + r"ExtremePhases/Case" + str(variation) + "_300_T50_xyz.txt"
+#     ) as f:
+#         landmarks_exp = np.array(
+#             [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
+#         )
 
-    landmarks_insp[:, [0, 2]] = landmarks_insp[:, [2, 0]]
-    landmarks_exp[:, [0, 2]] = landmarks_exp[:, [2, 0]]
+#     landmarks_insp[:, [0, 2]] = landmarks_insp[:, [2, 0]]
+#     landmarks_exp[:, [0, 2]] = landmarks_exp[:, [2, 0]]
 
-    return (
-        image_insp,
-        image_exp,
-        landmarks_insp,
-        landmarks_exp,
-        mask,
-        voxel_sizes[variation],
-    )
+#     return (
+#         image_insp,
+#         image_exp,
+#         landmarks_insp,
+#         landmarks_exp,
+#         mask,
+#         voxel_sizes[variation],
+#     )
 
-def fast_trilinear_interpolation(input_array, x_indices, y_indices, z_indices):
-    x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
-    y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
-    z_indices = (z_indices + 1) * (input_array.shape[2] - 1) * 0.5
+# def fast_trilinear_interpolation(input_array, x_indices, y_indices, z_indices):
+#     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
+#     y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
+#     z_indices = (z_indices + 1) * (input_array.shape[2] - 1) * 0.5
 
-    x0 = torch.floor(x_indices.detach()).to(torch.long)
-    y0 = torch.floor(y_indices.detach()).to(torch.long)
-    z0 = torch.floor(z_indices.detach()).to(torch.long)
-    x1 = x0 + 1
-    y1 = y0 + 1
-    z1 = z0 + 1
+#     x0 = torch.floor(x_indices.detach()).to(torch.long)
+#     y0 = torch.floor(y_indices.detach()).to(torch.long)
+#     z0 = torch.floor(z_indices.detach()).to(torch.long)
+#     x1 = x0 + 1
+#     y1 = y0 + 1
+#     z1 = z0 + 1
 
-    x0 = torch.clamp(x0, 0, input_array.shape[0] - 1)
-    y0 = torch.clamp(y0, 0, input_array.shape[1] - 1)
-    z0 = torch.clamp(z0, 0, input_array.shape[2] - 1)
-    x1 = torch.clamp(x1, 0, input_array.shape[0] - 1)
-    y1 = torch.clamp(y1, 0, input_array.shape[1] - 1)
-    z1 = torch.clamp(z1, 0, input_array.shape[2] - 1)
+#     x0 = torch.clamp(x0, 0, input_array.shape[0] - 1)
+#     y0 = torch.clamp(y0, 0, input_array.shape[1] - 1)
+#     z0 = torch.clamp(z0, 0, input_array.shape[2] - 1)
+#     x1 = torch.clamp(x1, 0, input_array.shape[0] - 1)
+#     y1 = torch.clamp(y1, 0, input_array.shape[1] - 1)
+#     z1 = torch.clamp(z1, 0, input_array.shape[2] - 1)
 
-    x = x_indices - x0
-    y = y_indices - y0
-    z = z_indices - z0
+#     x = x_indices - x0
+#     y = y_indices - y0
+#     z = z_indices - z0
 
-    output = (
-        input_array[x0, y0, z0] * (1 - x) * (1 - y) * (1 - z)
-        + input_array[x1, y0, z0] * x * (1 - y) * (1 - z)
-        + input_array[x0, y1, z0] * (1 - x) * y * (1 - z)
-        + input_array[x0, y0, z1] * (1 - x) * (1 - y) * z
-        + input_array[x1, y0, z1] * x * (1 - y) * z
-        + input_array[x0, y1, z1] * (1 - x) * y * z
-        + input_array[x1, y1, z0] * x * y * (1 - z)
-        + input_array[x1, y1, z1] * x * y * z
-    )
-    return output
+#     output = (
+#         input_array[x0, y0, z0] * (1 - x) * (1 - y) * (1 - z)
+#         + input_array[x1, y0, z0] * x * (1 - y) * (1 - z)
+#         + input_array[x0, y1, z0] * (1 - x) * y * (1 - z)
+#         + input_array[x0, y0, z1] * (1 - x) * (1 - y) * z
+#         + input_array[x1, y0, z1] * x * (1 - y) * z
+#         + input_array[x0, y1, z1] * (1 - x) * y * z
+#         + input_array[x1, y1, z0] * x * y * (1 - z)
+#         + input_array[x1, y1, z1] * x * y * z
+#     )
+#     return output
+
+# def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
+#     """Make a coordinate tensor."""
+
+#     dims = list(dims)
+#     dims.insert(dimension, 1)
+
+#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
+#     coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
+#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
+#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
+#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
+
+#     coordinate_tensor = coordinate_tensor.cuda()
+
+#     return coordinate_tensor
+
+# def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
+#     """Make a coordinate tensor."""
+
+#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
+#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
+#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
+#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
+
+#     coordinate_tensor = coordinate_tensor.cuda()
+
+#     return coordinate_tensor
+
+# def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
+#     """Make a coordinate tensor."""
+
+#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
+#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
+#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
+#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
+#     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
+
+#     coordinate_tensor = coordinate_tensor.cuda()
+
+#     return coordinate_tensor
+
+# #----------------------------------------------------------------------
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
-    """Make a coordinate tensor."""
-
-    dims = list(dims)
-    dims.insert(dimension, 1)
-
-    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-    coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-    coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-    coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-
-    coordinate_tensor = coordinate_tensor.cuda()
-
-    return coordinate_tensor
-
-def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
-    """Make a coordinate tensor."""
-
-    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-    coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-    coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-
-    coordinate_tensor = coordinate_tensor.cuda()
-
-    return coordinate_tensor
-
-def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
-    """Make a coordinate tensor."""
-
-    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-    coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-    coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-    coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
-
-    coordinate_tensor = coordinate_tensor.cuda()
-
-    return coordinate_tensor
-
-#----------------------------------------------------------------------
 
 def create_unique_dir(base_dir):
     suffix = 0
@@ -235,29 +233,6 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
     coordinate_tensor = coordinate_tensor.cuda()
     return coordinate_tensor
-
-def make_uniform_coordinate_tensor_old(mask, dims, batch_size):
-    # Step 1: Determine the mask radius
-    mask = np.ceil(mask).clip(0, 1)
-    coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
-    coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-    coordinate_tensor = torch.stack(coordinate_tensor, dim=2)
-    coordinate_tensor = coordinate_tensor.view([-1, 2])
-    masked_coords = coordinate_tensor[mask.flatten() > 0, :]
-    mask_radius = torch.norm(masked_coords, dim=1).max()
-
-    # Step 2: Generate Fibonacci lattice points
-    indices = torch.arange(0, batch_size, dtype=torch.float32) + 0.5
-    phi = (1 + math.sqrt(5)) / 2  # Golden ratio
-    r = torch.sqrt(indices / batch_size) * mask_radius
-    theta = 2 * math.pi * indices / (phi ** 2)
-
-    # Step 3: Convert to Cartesian coordinates
-    x_coords = r * torch.cos(theta)
-    y_coords = r * torch.sin(theta)
-    even_coords = torch.stack((x_coords, y_coords), dim=1)
-
-    return even_coords.cuda()
 
 def make_uniform_coordinate_tensor(mask, dims, batch_size):
     # Step 1: Determine the mask radius and valid region
@@ -434,59 +409,6 @@ def get_optical_disk_mask(image, initial_thresh=175, max_iter=10):
     
     print("Unable to find suitable contour within iteration limit.")
     return None
-
-def get_vessel_mask(image):
-    
-    # Apply the Frangi filter to highlight vessels
-    frangi_image = filters.frangi(image, black_ridges=True, alpha=0.5, beta=0.25)
-    # sato_response = filters.sato(image, sigmas=[10.0], black_ridges=False)    
-
-    # # Normalize the Frangi filter output for better thresholding
-    frangi_image = cv2.normalize(frangi_image, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    
-    # # Apply threshold to get a binary mask
-    # _, thresh = cv2.threshold(frangi_image, 100, 255, cv2.THRESH_BINARY)
-    
-    # Clean up the mask using morphological opening
-    # kernel = disk(3)
-    # mask = binary_opening(thresh, kernel)
-    
-    # Convert the mask to uint8 type
-    mask = (frangi_image * 255).astype('uint8')
-    cv2.imwrite('vessel_mask.png', mask)
-    print("Vessel mask saved as 'vessel_mask.png'")
-    return mask
-
-def sift_based_vessel_mask(image):
-
-    image = (image * 255).astype(np.uint8)
-    # Step 2: Initialize the SIFT detector
-    sift = cv2.SIFT_create()
-    
-    # Step 3: Detect keypoints and compute descriptors
-    keypoints, _ = sift.detectAndCompute(image, None)
-    
-    # Step 4: Create a blank mask
-    mask = np.zeros_like(image)
-    
-    # Step 5: Draw circles around keypoints
-    for kp in keypoints:
-        # Use keypoint size to determine the radius
-        radius = int(kp.size / 2)
-        # Only draw keypoints with a radius larger than a threshold
-        if radius > 5:  # Adjust the threshold as needed
-            # Get the keypoint's x and y coordinates
-            x, y = int(kp.pt[0]), int(kp.pt[1])
-            # Draw a circle on the mask
-            cv2.circle(mask, (x, y), radius, 255, -1)
-    # Step 6: Apply dilation to connect nearby keypoints
-    kernel = np.ones((5,5), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations=1)
-    # Save the mask as an image
-    cv2.imwrite('sift_vessel_mask.png', mask)
-    print("SIFT-based vessel mask saved as 'sift_vessel_mask.png'")
-    # Step 7: Return the final mask
-    return mask
 
 def bilinear_interpolation(input_array, x_indices, y_indices):
     # input_array.shape = #torch.Size([2912, 2912])
@@ -689,7 +611,7 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
     #dfm = np.stack([mapy, mapx], axis=2).reshape((vol_shape[0]*vol_shape[1], 2)) 
     #dfv = np.stack([mapy, mapx], axis=2)
 
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((2912, 2912), spacing=64, thickness=3))
+    grid =  torch.from_numpy(bw_grid((2912, 2912), spacing=64, thickness=3))
     tr1 = bilinear_interpolation(grid, torch.from_numpy( dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     tr1 = tr1.reshape(vol_shape).numpy()
@@ -792,7 +714,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     # dfm = np.stack([mapy, mapx], axis=2)
     # dfm=dfm.reshape((vol_shape[0]*vol_shape[1], 2))
 
-    grid =  torch.from_numpy(pystrum.pynd.ndutils.bw_grid((vol_shape[0], vol_shape[1]), spacing=64, thickness=3))
+    grid =  torch.from_numpy(bw_grid((vol_shape[0], vol_shape[1]), spacing=64, thickness=3))
     tr1 = bilinear_interpolation(grid, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     img = bilinear_interpolation(moving_image, torch.from_numpy(dfv[:, 0]), torch.from_numpy(dfv[:, 1]))
     tr1 = tr1.reshape(vol_shape).numpy()
@@ -906,49 +828,17 @@ def clean_memory():
             if torch.is_tensor(eval(obj)):
                 del globals()[obj]
 
-def visualize_weighted_sampling(indices, coordinate_tensor,mask, image_shape=(200, 200), save_path="weighted_sampling_heatmap.png"):
-    """
-    Visualize where points are being sampled from. Coordinates are in the [-1,1] range.
-    indices: the chosen sample indices (1D tensor).
-    coordinate_tensor: all valid coordinates (N,2).
-    image_shape: tuple (height,width) of the image.
-    save_path: file path for saving the figure.
-    """
+def bw_grid(vol_shape, spacing, thickness=1):
+    """Draw a black and white grid."""
+    if not isinstance(spacing, (list, tuple)):
+        spacing = [spacing] * len(vol_shape)
+    spacing = [f + 1 for f in spacing]
     
-    mask = cv2.resize(mask, (image_shape[1], image_shape[0]))
-    mask = (mask > 0).astype(np.uint8)
-
-    coords = coordinate_tensor[indices].detach().cpu().numpy()
-    
-    # Map [-1,1] to pixel coordinates [0, width-1 or height-1].
-    coords[:,0] = (coords[:,0] + 1) / 2 * (image_shape[0] - 1)
-    coords[:,1] = (coords[:,1] + 1) / 2 * (image_shape[1] - 1)
-    
-    # Round and clamp
-    coords = np.round(coords).astype(int)
-    coords[:,0] = np.clip(coords[:,0], 0, image_shape[0] - 1)
-    coords[:,1] = np.clip(coords[:,1], 0, image_shape[1] - 1)
-    
-    # Accumulate counts in a heatmap
-    # heatmap = np.zeros(image_shape, dtype=np.float32)
-    for r, c in coords:
-        mask[r, c] += 1
-    
-    # Plot and save
-    plt.figure(figsize=(6,6))
-    
-    # First show the mask in grayscale
-    
-    # Overlay the heatmap with some transparency
-    # plt.imshow(heatmap, cmap='hot', alpha=1)
-    
-    plt.imshow(mask, cmap='hot', alpha=1)
-
-    plt.title("Weighted Sampling Heatmap")
-    plt.colorbar()
-    plt.savefig(save_path, dpi=150)
-    plt.close()
-    
-    print(f"Heatmap saved at {save_path}")
-    
-    
+    grid_image = np.zeros(vol_shape)
+    for d, v in enumerate(vol_shape):
+        ranges = [np.arange(0, f) for f in vol_shape] 
+        for t in range(thickness):
+            ranges[d] = np.append(np.arange(0 + t, v, spacing[d]), -1)
+            grid_image[tuple(np.meshgrid(*ranges, indexing='ij'))] = 1
+            
+    return grid_image

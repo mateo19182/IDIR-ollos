@@ -126,3 +126,42 @@ def save_weight_map_as_image(weight_map, filename="weight_map.png"):
     # Save using matplotlib
     plt.imsave(filename, vis_map, cmap='gray')
     print(f"Saved weight map image to {filename}")
+
+def visualize_sampling(indices, coordinate_tensor,mask, image_shape=(200, 200), save_path="sampling_heatmap.png"):
+    # Resize the mask to the image shape    
+    mask = cv2.resize(mask, (image_shape[1], image_shape[0]))
+    mask = (mask > 0).astype(np.uint8)
+
+    coords = coordinate_tensor[indices].detach().cpu().numpy()
+    
+    # Map [-1,1] to pixel coordinates [0, width-1 or height-1].
+    coords[:,0] = (coords[:,0] + 1) / 2 * (image_shape[0] - 1)
+    coords[:,1] = (coords[:,1] + 1) / 2 * (image_shape[1] - 1)
+    
+    # Round and clamp
+    coords = np.round(coords).astype(int)
+    coords[:,0] = np.clip(coords[:,0], 0, image_shape[0] - 1)
+    coords[:,1] = np.clip(coords[:,1], 0, image_shape[1] - 1)
+    
+    # Accumulate counts in a heatmap
+    # heatmap = np.zeros(image_shape, dtype=np.float32)
+    for r, c in coords:
+        mask[r, c] += 1
+    
+    # Plot and save
+    plt.figure(figsize=(6,6))
+    
+    # First show the mask in grayscale
+    
+    # Overlay the heatmap with some transparency
+    # plt.imshow(heatmap, cmap='hot', alpha=1)
+    
+    plt.imshow(mask, cmap='hot', alpha=1)
+
+    plt.title("Weighted Sampling Heatmap")
+    plt.colorbar()
+    plt.savefig(save_path, dpi=150)
+    plt.close()
+    
+    print(f"Heatmap saved at {save_path}")
+    

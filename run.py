@@ -1,7 +1,6 @@
 import os
 import imageio.v2 as imageio
 from matplotlib import pyplot as plt
-from scipy import integrate
 from utils import general
 from models import models
 import numpy as np
@@ -9,13 +8,13 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "FIRE"  # "FIRE", "RFMID"
+TARGET = "RFMID"  # "FIRE", "RFMID"
 
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
 learning_rates = [0.00001]   
-batch_sizes = [10000]
+batch_sizes = [100]
 
 for lr in learning_rates:
     for batch_size in batch_sizes:
@@ -23,10 +22,10 @@ for lr in learning_rates:
         kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
-        kwargs["batch_size"] = batch_size   #10000
-        kwargs["phases"] = 2  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
+        kwargs["batch_size"] = batch_size   #max 1.500.000
+        kwargs["phases"] = 1  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
         kwargs["sampling"] = "uniform"  # random, weighted, percentage, uniform
-        kwargs["epochs"] = 2500#2500
+        kwargs["epochs"] = 1000#2500
         kwargs["patience"] = 200
         kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
@@ -46,8 +45,7 @@ for lr in learning_rates:
         if TARGET == "FIRE":
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-            # for i in range(0, 50):
-            for i in range(0, 14+49+71):
+            for i in range(1+14+49, 1+14+49+71):  #+49+71
                 result = general.load_image_FIRE(i, (data_dir))
                 if result is None:
                     continue
@@ -69,7 +67,7 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in range(14,200 ):
+            for i in range(0,15):
                 result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
                 if result is None:
                     continue
@@ -106,7 +104,6 @@ for lr in learning_rates:
                     f.write(f"{key}: {value}\n")
         plt.figure()
         plt.plot(thresholds, mean_success_rates)
-        # print(integrate.trapezoid(mean_success_rates, thresholds))
         plt.xlabel('Threshold')
         plt.ylabel('Mean Success Rate')
         plt.title('mean Success Rate vs Threshold')
