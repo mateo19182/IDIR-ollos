@@ -14,27 +14,27 @@ TARGET = "RFMID"  # "FIRE", "RFMID"
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
 learning_rates = [0.00001]   
-batch_sizes = [100]
+network_types = ["SIREN"] 
 
 for lr in learning_rates:
-    for batch_size in batch_sizes:
+    for network_type in network_types:
         kwargs = {}
-        kwargs["network_type"] = "MLP"  # Options are "MLP" and "SIREN"
+        kwargs["network_type"] = network_type  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
-        kwargs["batch_size"] = batch_size   #max 1.500.000
-        kwargs["phases"] = 1  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
+        kwargs["batch_size"] = 62500  #(250) #max 1.500.000
+        kwargs["phases"] = 2  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
         kwargs["sampling"] = "uniform"  # random, weighted, percentage, uniform
-        kwargs["epochs"] = 1000#2500
-        kwargs["patience"] = 200
+        kwargs["epochs"] = 2000 #2500
+        kwargs["patience"] = 500
         kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
         kwargs["hyper_regularization"] = True
         kwargs["alpha_hyper"] = 0.1   #0.25
         kwargs["jacobian_regularization"] = True
         kwargs["alpha_jacobian"] =  0.1  #0.05 default
-        kwargs["bending_regularization"] = False
-        kwargs["alpha_bending"] = 150.0   #10.0
+        kwargs["bending_regularization"] = True
+        kwargs["alpha_bending"] = 100.0   #10.0
                 
         kwargs["save_checkpoints"] = False
 
@@ -45,7 +45,7 @@ for lr in learning_rates:
         if TARGET == "FIRE":
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-            for i in range(1+14+49, 1+14+49+71):  #+49+71
+            for i in range(0, 14+49+70):  #+49+70
                 result = general.load_image_FIRE(i, (data_dir))
                 if result is None:
                     continue
