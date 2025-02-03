@@ -8,13 +8,14 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "RFMID"  # "FIRE", "RFMID"
+TARGET = "FIRE"  # "FIRE", "RFMID"
 
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
 learning_rates = [0.00001]   
-network_types = ["SIREN"] 
+network_types = ["MLP"] 
+lottery = 10  #1
 
 for lr in learning_rates:
     for network_type in network_types:
@@ -22,18 +23,18 @@ for lr in learning_rates:
         kwargs["network_type"] = network_type  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
-        kwargs["batch_size"] = 62500  #(250) #max 1.500.000
-        kwargs["phases"] = 2  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
-        kwargs["sampling"] = "uniform"  # random, weighted, percentage, uniform
-        kwargs["epochs"] = 2000 #2500
+        kwargs["batch_size"] = 16  #max 1.500.000 ... 16 -> 256 -> 65536
+        kwargs["phases"] = 1  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
+        kwargs["sampling"] = "random"  # random, weighted, percentage, uniform
+        kwargs["epochs"] = 500  #2500
         kwargs["patience"] = 500
         kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
-        kwargs["hyper_regularization"] = True
-        kwargs["alpha_hyper"] = 0.1   #0.25
-        kwargs["jacobian_regularization"] = True
-        kwargs["alpha_jacobian"] =  0.1  #0.05 default
-        kwargs["bending_regularization"] = True
+        kwargs["hyper_regularization"] = False
+        kwargs["alpha_hyper"] = 0.05   #0.25
+        kwargs["jacobian_regularization"] = False
+        kwargs["alpha_jacobian"] = 0.05  #0.05 default
+        kwargs["bending_regularization"] = False
         kwargs["alpha_bending"] = 100.0   #10.0
                 
         kwargs["save_checkpoints"] = False
@@ -45,7 +46,7 @@ for lr in learning_rates:
         if TARGET == "FIRE":
             mask_path, feature_mask_path = os.path.join(data_dir, 'Masks', 'mask.png'), os.path.join(data_dir,'Masks', 'feature_mask.png')
             fixed_mask, moving_mask = imageio.imread(mask_path), imageio.imread(feature_mask_path)
-            for i in range(0, 14+49+70):  #+49+70
+            for i in range(14+49, 14+49+70):  #+49+70
                 result = general.load_image_FIRE(i, (data_dir))
                 if result is None:
                     continue
@@ -53,21 +54,22 @@ for lr in learning_rates:
                     (fixed_image, moving_image, ground_truth, fixed, moving) = result
                 if i<14:
                     cat = "_A"
-                elif i<73: 
+                elif i<63: 
                     cat = "_P"
                 else: cat = "_S"
                 kwargs["save_folder"]= os.path.join(out_dir, str(i+1) + cat + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running FIRE {i}")
-                ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
-                ImpReg.fit()
-                registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
-
-                results.append(general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image))
+                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery)
+                print(f"Selected initialization with total loss: {best_loss:.6f}")
+                best_model.fit()
+                registered_img, dfv = best_model(output_shape=kwargs["image_shape"])
+                
+                results.append(general.test_FIRE(dfv, ground_truth, kwargs["image_shape"], best_model.save_folder, registered_img, fixed_image, moving_image))
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in range(0,15):
+            for i in range(9,10):
                 result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
                 if result is None:
                     continue
@@ -77,11 +79,13 @@ for lr in learning_rates:
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running RFMID {i}")
-                ImpReg = models.ImplicitRegistrator2d(moving_image, fixed_image, **kwargs)
-                ImpReg.fit()
-                registered_img, dfv = ImpReg(output_shape=kwargs["image_shape"])
+                num_trials = 5  # You can modify this number to trade off time for a better initialization.
+                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=num_trials)
+                print(f"Selected initialization with total loss: {best_loss:.6f}")
+                best_model.fit()
+                registered_img, dfv = best_model(output_shape=kwargs["image_shape"])
 
-                results.append(general.test_RFMID(dfv, matrix, kwargs["image_shape"], ImpReg.save_folder, registered_img, fixed_image, moving_image, fixed_mask))
+                results.append(general.test_RFMID(dfv, matrix, kwargs["image_shape"], best_model.save_folder, registered_img, fixed_image, moving_image, fixed_mask))
                 general.clean_memory()
 
         # Separate results into individual lists

@@ -9,207 +9,11 @@ from scipy import integrate
 from skimage import io, filters
 import sys
 import math
+from models import models
+import random
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '../visualization'))
 import fig_vis
-
-
-# def compute_landmark_accuracy(landmarks_pred, landmarks_gt, voxel_size):
-#     landmarks_pred = np.round(landmarks_pred)
-#     landmarks_gt = np.round(landmarks_gt)
-
-#     difference = landmarks_pred - landmarks_gt
-#     difference = np.abs(difference)
-#     difference = difference * voxel_size
-
-#     means = np.mean(difference, 0)
-#     stds = np.std(difference, 0)
-
-#     difference = np.square(difference)
-#     difference = np.sum(difference, 1)
-#     difference = np.sqrt(difference)
-
-#     means = np.append(means, np.mean(difference))
-#     stds = np.append(stds, np.std(difference))
-
-#     means = np.round(means, 2)
-#     stds = np.round(stds, 2)
-
-#     means = means[::-1]
-#     stds = stds[::-1]
-
-#     return means, stds
-
-# def compute_landmarks(network, landmarks_pre, image_size):
-#     scale_of_axes = [(0.5 * s) for s in image_size]
-
-#     coordinate_tensor = torch.FloatTensor(landmarks_pre / (scale_of_axes)) - 1.0
-
-#     output = network(coordinate_tensor.cuda())
-
-#     delta = output.cpu().detach().numpy() * (scale_of_axes)
-
-#     return landmarks_pre + delta, delta
-
-# def load_image_DIRLab(variation=1, folder=r"D:/Data/DIRLAB/Case"):
-#     # Size of data, per image pair
-#     image_sizes = [
-#         0,
-#         [94, 256, 256],
-#         [112, 256, 256],
-#         [104, 256, 256],
-#         [99, 256, 256],
-#         [106, 256, 256],
-#         [128, 512, 512],
-#         [136, 512, 512],
-#         [128, 512, 512],
-#         [128, 512, 512],
-#         [120, 512, 512],
-#     ]
-
-#     # Scale of data, per image pair
-#     voxel_sizes = [
-#         0,
-#         [2.5, 0.97, 0.97],
-#         [2.5, 1.16, 1.16],
-#         [2.5, 1.15, 1.15],
-#         [2.5, 1.13, 1.13],
-#         [2.5, 1.1, 1.1],
-#         [2.5, 0.97, 0.97],
-#         [2.5, 0.97, 0.97],
-#         [2.5, 0.97, 0.97],
-#         [2.5, 0.97, 0.97],
-#         [2.5, 0.97, 0.97],
-#     ]
-
-#     shape = image_sizes[variation]
-
-#     folder = folder + str(variation) + r"Pack" + os.path.sep
-
-#     # Images
-#     dtype = np.dtype(np.int16)
-
-# #   with open(folder + r"Images/case" + str(variation) + "_T00_s.img", "rb") as f:
-#     with open(folder + r"Images/case" + str(variation) + "_T00.img", "rb") as f:
-#         data = np.fromfile(f, dtype)
-#     image_insp = data.reshape(shape)
-
-# #   with open(folder + r"Images/case" + str(variation) + "_T50_s.img", "rb") as f:
-#     with open(folder + r"Images/case" + str(variation) + "_T50.img", "rb") as f:
-#         data = np.fromfile(f, dtype)
-#     image_exp = data.reshape(shape)
-
-# #   imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00_s.mhd")
-#     imgsitk_in = sitk.ReadImage(folder + r"Masks/case" + str(variation) + "_T00.mhd")
-#     print(imgsitk_in)
-#     mask = np.clip(sitk.GetArrayFromImage(imgsitk_in), 0, 1)
-#     image_insp = torch.FloatTensor(image_insp)
-#     image_exp = torch.FloatTensor(image_exp)
-
-#     # Landmarks
-#     with open(
-#         folder + r"ExtremePhases/Case" + str(variation) + "_300_T00_xyz.txt"
-#     ) as f:
-#         landmarks_insp = np.array(
-#             [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
-#         )
-
-#     with open(
-#         folder + r"ExtremePhases/Case" + str(variation) + "_300_T50_xyz.txt"
-#     ) as f:
-#         landmarks_exp = np.array(
-#             [list(map(int, line[:-1].split("\t")[:3])) for line in f.readlines()]
-#         )
-
-#     landmarks_insp[:, [0, 2]] = landmarks_insp[:, [2, 0]]
-#     landmarks_exp[:, [0, 2]] = landmarks_exp[:, [2, 0]]
-
-#     return (
-#         image_insp,
-#         image_exp,
-#         landmarks_insp,
-#         landmarks_exp,
-#         mask,
-#         voxel_sizes[variation],
-#     )
-
-# def fast_trilinear_interpolation(input_array, x_indices, y_indices, z_indices):
-#     x_indices = (x_indices + 1) * (input_array.shape[0] - 1) * 0.5
-#     y_indices = (y_indices + 1) * (input_array.shape[1] - 1) * 0.5
-#     z_indices = (z_indices + 1) * (input_array.shape[2] - 1) * 0.5
-
-#     x0 = torch.floor(x_indices.detach()).to(torch.long)
-#     y0 = torch.floor(y_indices.detach()).to(torch.long)
-#     z0 = torch.floor(z_indices.detach()).to(torch.long)
-#     x1 = x0 + 1
-#     y1 = y0 + 1
-#     z1 = z0 + 1
-
-#     x0 = torch.clamp(x0, 0, input_array.shape[0] - 1)
-#     y0 = torch.clamp(y0, 0, input_array.shape[1] - 1)
-#     z0 = torch.clamp(z0, 0, input_array.shape[2] - 1)
-#     x1 = torch.clamp(x1, 0, input_array.shape[0] - 1)
-#     y1 = torch.clamp(y1, 0, input_array.shape[1] - 1)
-#     z1 = torch.clamp(z1, 0, input_array.shape[2] - 1)
-
-#     x = x_indices - x0
-#     y = y_indices - y0
-#     z = z_indices - z0
-
-#     output = (
-#         input_array[x0, y0, z0] * (1 - x) * (1 - y) * (1 - z)
-#         + input_array[x1, y0, z0] * x * (1 - y) * (1 - z)
-#         + input_array[x0, y1, z0] * (1 - x) * y * (1 - z)
-#         + input_array[x0, y0, z1] * (1 - x) * (1 - y) * z
-#         + input_array[x1, y0, z1] * x * (1 - y) * z
-#         + input_array[x0, y1, z1] * (1 - x) * y * z
-#         + input_array[x1, y1, z0] * x * y * (1 - z)
-#         + input_array[x1, y1, z1] * x * y * z
-#     )
-#     return output
-
-# def make_coordinate_slice(dims=(28, 28), dimension=0, slice_pos=0, gpu=True):
-#     """Make a coordinate tensor."""
-
-#     dims = list(dims)
-#     dims.insert(dimension, 1)
-
-#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-#     coordinate_tensor[dimension] = torch.linspace(slice_pos, slice_pos, 1)
-#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-
-#     coordinate_tensor = coordinate_tensor.cuda()
-
-#     return coordinate_tensor
-
-# def make_coordinate_tensor(dims=(28, 28, 28), gpu=True):
-#     """Make a coordinate tensor."""
-
-#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-
-#     coordinate_tensor = coordinate_tensor.cuda()
-
-#     return coordinate_tensor
-
-# def make_masked_coordinate_tensor(mask, dims=(28, 28, 28)):
-#     """Make a coordinate tensor."""
-
-#     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(3)]
-#     coordinate_tensor = torch.meshgrid(*coordinate_tensor, indexing="ij")
-#     coordinate_tensor = torch.stack(coordinate_tensor, dim=3)
-#     coordinate_tensor = coordinate_tensor.view([np.prod(dims), 3])
-#     coordinate_tensor = coordinate_tensor[mask.flatten() > 0, :]
-
-#     coordinate_tensor = coordinate_tensor.cuda()
-
-#     return coordinate_tensor
-
-# #----------------------------------------------------------------------
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -235,6 +39,10 @@ def make_masked_coordinate_tensor_2d(mask, dims):
     return coordinate_tensor
 
 def make_uniform_coordinate_tensor(mask, dims, batch_size):
+    #Fibonacci lattice points in polar form place points on a circle by assigning each point 
+    # a radius (sqrt i / N) and an angle (2πi / φ²)
+    # This creates a relatively uniform distribution of points across a circular area.
+    # https://observablehq.com/@meetamit/fibonacci-lattices
     # Step 1: Determine the mask radius and valid region
     mask = np.ceil(mask).clip(0, 1)
     coordinate_tensor = [torch.linspace(-1, 1, dims[i]) for i in range(2)]
@@ -264,18 +72,28 @@ def make_uniform_coordinate_tensor(mask, dims, batch_size):
     y_indices = ((even_coords[:, 1] + 1) / 2 * (dims[1] - 1)).long().clamp(0, dims[1] - 1)
 
     # Step 5: Find points outside the mask and project them to the closest valid point
+    # mask = torch.from_numpy(mask)
+    # valid_mask = mask[x_indices, y_indices] > 0
+    # invalid_indices = torch.where(~valid_mask)[0]
+
+    # if len(invalid_indices) > 0: 
+    #     valid_points = coordinate_tensor[mask.flatten() > 0, :]
+    #     invalid_points = even_coords[invalid_indices]
+    #     distances = torch.cdist(invalid_points, valid_points, p=2) # too memory xpensive
+    #     closest_valid_indices = torch.argmin(distances, dim=1)
+    #     closest_valid_points = valid_points[closest_valid_indices]
+    #     even_coords[invalid_indices] = closest_valid_points
+    # Step 5: Find valid points using the mask
     mask = torch.from_numpy(mask)
     valid_mask = mask[x_indices, y_indices] > 0
-    invalid_indices = torch.where(~valid_mask)[0]
+    valid_coords = even_coords[valid_mask]
 
-    if len(invalid_indices) > 0:
-        valid_points = coordinate_tensor[mask.flatten() > 0, :]
-        invalid_points = even_coords[invalid_indices]
-        distances = torch.cdist(invalid_points, valid_points, p=2)
-        closest_valid_indices = torch.argmin(distances, dim=1)
-        closest_valid_points = valid_points[closest_valid_indices]
-        even_coords[invalid_indices] = closest_valid_points
-
+    # Step 6: Select required number of points
+    if len(valid_coords) < batch_size:
+        # If we don't have enough valid points, repeat existing ones
+        num_repeats = (batch_size + len(valid_coords) - 1) // len(valid_coords)
+        valid_coords = valid_coords.repeat(num_repeats, 1)
+    
     # Step 6: Select the required number of points
     selected_coords = even_coords[:batch_size]
 
@@ -527,8 +345,7 @@ def load_image_FIRE(index, folder):
     files.sort()
     fixed_image = imageio.imread(os.path.join(images_folder, files[index*2]))
     moving_image = imageio.imread(os.path.join(images_folder, files[(index*2)+1]))
-    #print(os.path.join(images_folder, files[index*2]))
-
+    print(os.path.join(images_folder, files[index*2]))
     ground_folder = os.path.join(folder, 'Ground Truth')
     files = os.listdir(ground_folder)
     files.sort()
@@ -588,7 +405,7 @@ def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
             f.write(f"Threshold for 90% success rate: {threshold_90:.4f}\n")
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
-        if sum(dists)<(sum(og_dists)*0.99):
+        if mean_dist < (og_mean_dist*1.1):
             f.write("improved\n")
             success = True
         else:
@@ -761,8 +578,8 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
         # dx = ox+(ox-dx)
         # dy = oy+(oy-dy)
 
-        x_res= (dx  + 1 ) * (vol_shape[0] - 1) * 0.5
-        y_res= (dy  + 1 ) * (vol_shape[0] - 1) * 0.5
+        x_res= (dx  + 1 ) * (vol_shape[0] - 1) * 0.5 * (1/scale)
+        y_res= (dy  + 1 ) * (vol_shape[0] - 1) * 0.5 * (1/scale)
         #print("x: {} y: {} x_truth: {} y_truth: {} x_res: {} y_res:{} ".format(x, y, x_truth, y_truth, x_res, y_res))
         dist = np.linalg.norm(np.array((moving_x, moving_y)) - np.array((x_res, y_res)))
         og_dist = np.linalg.norm(np.array((fixed_x, fixed_y)) - np.array((moving_x, moving_y)))
@@ -842,3 +659,131 @@ def bw_grid(vol_shape, spacing, thickness=1):
             grid_image[tuple(np.meshgrid(*ranges, indexing='ij'))] = 1
             
     return grid_image
+
+def evaluate_initial_loss(model, sample_size=None):
+    """
+    Evaluate the initial registration loss for a given model instance,
+    including regularization losses if enabled.
+
+    It performs a forward pass on a subset of the fixed-image coordinates and
+    compares the transformed moving image to the fixed image using the model's criterion.
+    
+    Regularization losses (jacobian, hyper, bending) are added if these options are
+    enabled in the model. This ensures that even at initialization, the network is 
+    evaluated using the full loss that will be used during training.
+    
+    Parameters:
+        model (ImplicitRegistrator2d): A model instance.
+        sample_size (int, optional): Number of random coordinates to sample. 
+            If None, uses model.batch_size.
+    
+    Returns:
+        float: The total loss value (data loss + regularization losses).
+    """
+    model.network.eval()
+
+    with torch.no_grad():
+        sample_size = sample_size or model.batch_size
+        total_coords = model.possible_coordinate_tensor.shape[0]
+        indices = torch.randperm(total_coords, device=model.possible_coordinate_tensor.device)[:sample_size]
+        coords = model.possible_coordinate_tensor[indices, :]
+
+        # Compute the network output and transformed coordinates.
+        output = model.network(coords)
+        coord_temp = coords + output
+        output_rel = coord_temp - coords  # Learned displacement
+
+        # Sample the moving and fixed images using bilinear interpolation.
+        transformed_img = bilinear_interpolation(
+            model.moving_image,
+            coord_temp[:, 0],
+            coord_temp[:, 1]
+        )
+        fixed_samples = bilinear_interpolation(
+            model.fixed_image,
+            coords[:, 0],
+            coords[:, 1]
+        )
+
+        # Compute the data matching loss.
+        loss_val = model.criterion(transformed_img, fixed_samples)
+
+        # Import the regularizers module here to avoid potential circular imports.
+        from objectives import regularizers
+
+        # Add Jacobian regularization loss if enabled.
+        if getattr(model, 'jacobian_regularization', False):
+            jacobian_loss = model.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
+                coords, output_rel, batch_size=sample_size
+            )
+            loss_val += jacobian_loss
+
+        # Add hyper elastic regularization loss if enabled.
+        if getattr(model, 'hyper_regularization', False):
+            if hasattr(regularizers, "compute_hyper_elastic_loss_2d"):
+                hyper_loss = model.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
+                    coords, output_rel, batch_size=sample_size
+                )
+                loss_val += hyper_loss
+            else:
+                print("Warning: hyper_regularization enabled but compute_hyper_elastic_loss_2d not available.")
+
+        # Add bending regularization loss if enabled.
+        if getattr(model, 'bending_regularization', False):
+            bending_loss = model.alpha_bending * regularizers.compute_bending_energy_2d(
+                coords, output_rel, batch_size=sample_size
+            )
+            loss_val += bending_loss
+
+    return loss_val.item()
+
+
+def select_best_initialization(moving_image, fixed_image, config, num_trials=5, sample_size=None):
+    """
+    Try multiple network initializations (taking the regularization losses into account)
+    and select the one with the lowest initial total loss.
+    
+    Parameters:
+        moving_image (torch.Tensor): Moving image tensor.
+        fixed_image (torch.Tensor): Fixed image tensor.
+        config (dict): Configuration dictionary; these values are passed as keyword arguments
+                       to ImplicitRegistrator2d.
+        num_trials (int): Number of different initializations to try (tunable).
+        sample_size (int, optional): Number of points for loss evaluation. 
+            If None, uses model.batch_size.
+    
+    Returns:
+        best_model (ImplicitRegistrator2d): The model instance with the lowest total loss.
+        best_loss (float): The corresponding loss value.
+    """
+    best_loss = float('inf')
+    best_model = None
+
+    for trial in range(num_trials):
+        config_copy = config.copy()
+        # Use a fully random seed if "random_init" is True, else use base_seed + trial.
+        if config.get("random_init", False):
+            new_seed = random.randint(0, 2**32 - 1)
+            config_copy["seed"] = new_seed
+        else:
+            base_seed = config.get("seed", 1)
+            config_copy["seed"] = base_seed + trial
+
+        # Remove "random_init" so that ImplicitRegistrator2d does not receive an unknown keyword.
+        config_copy.pop("random_init", None)
+        
+        # Set the global seed for this trial.
+        torch.manual_seed(config_copy["seed"])
+        
+        # Create a new model instance with the current configuration.
+        model = models.ImplicitRegistrator2d(moving_image, fixed_image, **config_copy)
+        
+        # Evaluate the initial loss (including regularization) for this candidate.
+        loss_value = evaluate_initial_loss(model, sample_size)
+        print(f"Trial {trial + 1}/{num_trials} (seed: {config_copy['seed']}): Initial total loss = {loss_value:.6f}")
+        
+        if loss_value < best_loss:
+            best_loss = loss_value
+            best_model = model
+
+    return best_model, best_loss

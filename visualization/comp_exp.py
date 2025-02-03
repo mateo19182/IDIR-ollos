@@ -53,6 +53,7 @@ def gather_experiment_data(exp_dir):
             stats = parse_metrics_file(mfile)
             stats["name"] = sub
             data.append(stats)
+            print(f"Processed {stats}")
     return data
 
 def compare_experiments(dir_list):
@@ -66,7 +67,9 @@ def compare_experiments(dir_list):
         data = gather_experiment_data(d)
         data.sort(key=lambda x: x["name"])
         experiments[d] = data
-
+        # Remove experiments with None mean_distance
+    for d in dir_list:
+        experiments[d] = [exp for exp in experiments[d] if exp["mean_distance"] is not None]
     # Find all subfolders for each experiment and compute intersection
     sets_of_subs = []
     for d in dir_list:
@@ -97,6 +100,12 @@ def compare_experiments(dir_list):
     aucs = np.array(aucs)                  # shape: (num_subfolders, num_dirs)
     thresholds_90 = np.array(thresholds_90)# shape: (num_subfolders, num_dirs)
     successes = np.array(successes)        # shape: (num_subfolders, num_dirs)
+
+    # Verify data is not empty
+    if not common_subfolders:
+        raise ValueError("No common subfolders found between experiments")
+    if mean_dists.size == 0 or aucs.size == 0 or thresholds_90.size == 0 or successes.size == 0:
+        raise ValueError("No data to plot")
 
     x = np.arange(len(common_subfolders))
     bar_width = 0.8 / len(dir_list)  # keep bars within total width 0.8
@@ -162,14 +171,21 @@ if __name__ == "__main__":
         python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
     """
 
-    dir_1 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline"
-    dir_2 = "out/new/good/FIRE/S/MLP-1e-05-2500-150000_S_r_+reg"
-    dir_3 = "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg"
-    dir_4 = "out/new/good/FIRE/S/SIREN-1e-05-2000-140000_S_-reg"
-    dir_5 = "out/new/good/FIRE/A/SIREN-1e-05-1500-100000_A_++reg"
-    dir_6 = "out/new/good/FIRE/A/SIREN-1e-05-2000-140000_A_-reg"
+    # dir_1 = "out/new/good/RFMID/MLP-1e-05-2500-150000_r"
+    # dir_2 = "out/new/good/RFMID/SIREN-1e-05-2000-150000_r+reg"
+    # dir_3 = "out/new/good/RFMID/RFMIDu/MLP-1e-05-2000-62500"
+    # dir_4 = "out/new/good/RFMID/RFMIDu/SIREN-1e-05-2000-62500"
+    # not enought common subfolders RFMID
+    # dir_1 = "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg"
+    dir_2 = "out/new/FIRE/MLP-0.0001-500-16"
+    dir_3 = "out/new/FIRE/MLP-0.0001-500-16-r500"
+    dir_4 = "out/new/FIRE/MLP-0.0001-500-16+reg"
+    dir_5 = "out/new/FIRE/MLP-1e-05-500-16"
+    dir_6 = "out/new/FIRE/MLP-1e-05-500-256"
+    dir_7 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline" 
+
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [dir_1, dir_2, dir_3]
+    dirs = [ dir_2, dir_3, dir_4, dir_5, dir_6, dir_7]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")
