@@ -176,16 +176,16 @@ if __name__ == "__main__":
     # dir_3 = "out/new/good/RFMID/RFMIDu/MLP-1e-05-2000-62500"
     # dir_4 = "out/new/good/RFMID/RFMIDu/SIREN-1e-05-2000-62500"
     # not enought common subfolders RFMID
-    # dir_1 = "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg"
-    dir_2 = "out/new/FIRE/MLP-0.0001-500-16"
-    dir_3 = "out/new/FIRE/MLP-0.0001-500-16-r500"
-    dir_4 = "out/new/FIRE/MLP-0.0001-500-16+reg"
-    dir_5 = "out/new/FIRE/MLP-1e-05-500-16"
-    dir_6 = "out/new/FIRE/MLP-1e-05-500-256"
-    dir_7 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline" 
+    # dir_1 = "out/real/FIRE/MLP-0.0001-r-1000-65536"
+    # dir_2 = "out/real/FIRE/MLP-0.0001-r-1000-131072_1"
+    dir_3 = "out/real/FIRE/MLP-0.0001-u-1000-65536"
+    dir_4 = "out/real/FIRE/MLP-0.0001-u-1000-131072"
+    # dir_5 = "out/new/FIRE/MLP-1e-05-500-16"
+    # dir_6 = "out/new/FIRE/MLP-1e-05-500-256"
+    # dir_7 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline" 
 
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [ dir_2, dir_3, dir_4, dir_5, dir_6, dir_7]
+    dirs = [ dir_3, dir_4]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")

@@ -664,76 +664,67 @@ def evaluate_initial_loss(model, sample_size=None):
     """
     Evaluate the initial registration loss for a given model instance,
     including regularization losses if enabled.
-
-    It performs a forward pass on a subset of the fixed-image coordinates and
-    compares the transformed moving image to the fixed image using the model's criterion.
     
-    Regularization losses (jacobian, hyper, bending) are added if these options are
-    enabled in the model. This ensures that even at initialization, the network is 
-    evaluated using the full loss that will be used during training.
-    
-    Parameters:
-        model (ImplicitRegistrator2d): A model instance.
-        sample_size (int, optional): Number of random coordinates to sample. 
-            If None, uses model.batch_size.
-    
-    Returns:
-        float: The total loss value (data loss + regularization losses).
+    Note: Gradients are required for regularization terms so we disable
+    the torch.no_grad() context.
     """
     model.network.eval()
 
-    with torch.no_grad():
-        sample_size = sample_size or model.batch_size
-        total_coords = model.possible_coordinate_tensor.shape[0]
-        indices = torch.randperm(total_coords, device=model.possible_coordinate_tensor.device)[:sample_size]
-        coords = model.possible_coordinate_tensor[indices, :]
+    # Remove the torch.no_grad context to allow gradient computation.
+    # Alternatively, ensure that the input coordinates require gradients.
+    sample_size = sample_size or model.batch_size
+    total_coords = model.possible_coordinate_tensor.shape[0]
+    indices = torch.randperm(total_coords, device=model.possible_coordinate_tensor.device)[:sample_size]
+    
+    # Make sure the coordinates require gradients for the regularizers.
+    coords = model.possible_coordinate_tensor[indices, :].clone().detach().requires_grad_(True)
 
-        # Compute the network output and transformed coordinates.
-        output = model.network(coords)
-        coord_temp = coords + output
-        output_rel = coord_temp - coords  # Learned displacement
+    # Compute the network output and transformed coordinates.
+    output = model.network(coords)
+    coord_temp = coords + output
+    output_rel = coord_temp - coords  # Learned displacement
 
-        # Sample the moving and fixed images using bilinear interpolation.
-        transformed_img = bilinear_interpolation(
-            model.moving_image,
-            coord_temp[:, 0],
-            coord_temp[:, 1]
+    # Sample the moving and fixed images using bilinear interpolation.
+    transformed_img = bilinear_interpolation(
+        model.moving_image,
+        coord_temp[:, 0],
+        coord_temp[:, 1]
+    )
+    fixed_samples = bilinear_interpolation(
+        model.fixed_image,
+        coords[:, 0],
+        coords[:, 1]
+    )
+
+    # Compute the data matching loss.
+    loss_val = model.criterion(transformed_img, fixed_samples)
+
+    # Import the regularizers module here to avoid potential circular imports.
+    from objectives import regularizers
+
+    # Add Jacobian regularization loss if enabled.
+    if getattr(model, 'jacobian_regularization', False):
+        jacobian_loss = model.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
+            coords, output_rel, batch_size=sample_size
         )
-        fixed_samples = bilinear_interpolation(
-            model.fixed_image,
-            coords[:, 0],
-            coords[:, 1]
-        )
+        loss_val += jacobian_loss
 
-        # Compute the data matching loss.
-        loss_val = model.criterion(transformed_img, fixed_samples)
-
-        # Import the regularizers module here to avoid potential circular imports.
-        from objectives import regularizers
-
-        # Add Jacobian regularization loss if enabled.
-        if getattr(model, 'jacobian_regularization', False):
-            jacobian_loss = model.alpha_jacobian * regularizers.compute_jacobian_loss_2d(
+    # Add hyper elastic regularization loss if enabled.
+    if getattr(model, 'hyper_regularization', False):
+        if hasattr(regularizers, "compute_hyper_elastic_loss_2d"):
+            hyper_loss = model.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
                 coords, output_rel, batch_size=sample_size
             )
-            loss_val += jacobian_loss
+            loss_val += hyper_loss
+        else:
+            print("Warning: hyper_regularization enabled but compute_hyper_elastic_loss_2d not available.")
 
-        # Add hyper elastic regularization loss if enabled.
-        if getattr(model, 'hyper_regularization', False):
-            if hasattr(regularizers, "compute_hyper_elastic_loss_2d"):
-                hyper_loss = model.alpha_hyper * regularizers.compute_hyper_elastic_loss_2d(
-                    coords, output_rel, batch_size=sample_size
-                )
-                loss_val += hyper_loss
-            else:
-                print("Warning: hyper_regularization enabled but compute_hyper_elastic_loss_2d not available.")
-
-        # Add bending regularization loss if enabled.
-        if getattr(model, 'bending_regularization', False):
-            bending_loss = model.alpha_bending * regularizers.compute_bending_energy_2d(
-                coords, output_rel, batch_size=sample_size
-            )
-            loss_val += bending_loss
+    # Add bending regularization loss if enabled.
+    if getattr(model, 'bending_regularization', False):
+        bending_loss = model.alpha_bending * regularizers.compute_bending_energy_2d(
+            coords, output_rel, batch_size=sample_size
+        )
+        loss_val += bending_loss
 
     return loss_val.item()
 
@@ -742,26 +733,40 @@ def select_best_initialization(moving_image, fixed_image, config, num_trials=5, 
     """
     Try multiple network initializations (taking the regularization losses into account)
     and select the one with the lowest initial total loss.
+
+    Additionally, save a combined image of the initial deformations on a grid for each trial,
+    alongside a reference grid with overlaid dashed lines to indicate image boundaries 
+    and the center. This makes it easier to judge deformations that move the grid out of 
+    the image region.
     
     Parameters:
-        moving_image (torch.Tensor): Moving image tensor.
-        fixed_image (torch.Tensor): Fixed image tensor.
-        config (dict): Configuration dictionary; these values are passed as keyword arguments
-                       to ImplicitRegistrator2d.
-        num_trials (int): Number of different initializations to try (tunable).
-        sample_size (int, optional): Number of points for loss evaluation. 
-            If None, uses model.batch_size.
+      moving_image (torch.Tensor): The moving image.
+      fixed_image (torch.Tensor): The fixed image.
+      config (dict): Configuration dictionary. Assumes 'image_shape' and 'save_folder' are included.
+      num_trials (int): Number of candidate initialization trials.
+      sample_size (int, optional): Number of points for loss evaluation.
     
     Returns:
-        best_model (ImplicitRegistrator2d): The model instance with the lowest total loss.
-        best_loss (float): The corresponding loss value.
+      best_model: The model instance with the lowest evaluated loss.
+      best_loss (float): The corresponding loss value.
     """
+    import matplotlib.pyplot as plt
+
     best_loss = float('inf')
     best_model = None
 
+    # Compute the volume shape (e.g. (1708, 1708)) and reference grid (undeformed).
+    vol_shape = tuple(config["image_shape"])  # (height, width)
+    ref_grid = bw_grid(vol_shape, spacing=64, thickness=3)  # original undeformed grid
+
+    # Lists to store deformation images and their corresponding loss and seed
+    deformation_images = []
+    trial_losses = []
+    trial_seeds = []
+
     for trial in range(num_trials):
         config_copy = config.copy()
-        # Use a fully random seed if "random_init" is True, else use base_seed + trial.
+        # Use a fully random seed if random_init is True, else add a trial offset.
         if config.get("random_init", False):
             new_seed = random.randint(0, 2**32 - 1)
             config_copy["seed"] = new_seed
@@ -781,9 +786,84 @@ def select_best_initialization(moving_image, fixed_image, config, num_trials=5, 
         # Evaluate the initial loss (including regularization) for this candidate.
         loss_value = evaluate_initial_loss(model, sample_size)
         print(f"Trial {trial + 1}/{num_trials} (seed: {config_copy['seed']}): Initial total loss = {loss_value:.6f}")
-        
+        trial_losses.append(loss_value)
+        trial_seeds.append(config_copy["seed"])
+
+        # --- Begin Deformation Visualization Code for each trial ---
+        try:
+            # Get the model's current (initial) registration output.
+            registered_img, dfv = model(output_shape=vol_shape)
+            # Create a grid image using the bw_grid function.
+            grid = torch.from_numpy(bw_grid(vol_shape, spacing=64, thickness=3))
+            # Ensure dfv is a numpy array.
+            if isinstance(dfv, torch.Tensor):
+                dfv_np = dfv.detach().cpu().numpy()
+            else:
+                dfv_np = dfv
+            # Compute the deformed grid using bilinear interpolation.
+            transformed_grid = bilinear_interpolation(
+                grid,
+                torch.from_numpy(dfv_np[:, 0]),
+                torch.from_numpy(dfv_np[:, 1])
+            )
+            # Reshape to the original volume shape.
+            transformed_grid = transformed_grid.reshape(vol_shape)
+            deformation_images.append(transformed_grid)
+        except Exception as e:
+            print("Error computing deformation for trial", trial + 1, ":", e)
+            # Append a placeholder (e.g., reference grid) if error occurs.
+            deformation_images.append(ref_grid)
+        # --- End Deformation Visualization Code ---
+
         if loss_value < best_loss:
             best_loss = loss_value
             best_model = model
+
+    # --- Combine all trial deformations into a single figure ---
+    # Create one extra subplot for the reference grid.
+    num_columns = num_trials + 1  
+    fig, axes = plt.subplots(1, num_columns, figsize=(3 * num_columns, 3))
+    
+    # Plot the reference grid in the first subplot.
+    axes[0].imshow(ref_grid, cmap='gray')
+    axes[0].set_title("Reference Grid", fontsize=9)
+    axes[0].axis("off")
+    
+    # Retrieve image dimensions for reference lines
+    height, width = vol_shape
+
+    # Identify the best trial index.
+    best_trial_index = trial_losses.index(best_loss) if trial_losses else None
+
+    # Plot each candidate's deformation.
+    for idx in range(num_trials):
+        ax = axes[idx + 1]
+        ax.imshow(deformation_images[idx], cmap='gray')
+        title = f"Trial {idx + 1}\nLoss: {trial_losses[idx]:.4f}\nSeed: {trial_seeds[idx]}"
+        if best_trial_index is not None and idx == best_trial_index:
+            title += "\n(Best)"
+            # Highlight best candidate border
+            for spine in ax.spines.values():
+                spine.set_edgecolor('red')
+                spine.set_linewidth(2)
+        ax.set_title(title, fontsize=8)
+        ax.axis("off")
+        
+        ax.set_xlim(0, width)
+        ax.set_ylim(height, 0) 
+        
+        ax.axhline(y=0, color='lime', linewidth=1)
+        ax.axhline(y=height - 1, color='lime', linewidth=1)
+        ax.axvline(x=0, color='lime', linewidth=1)
+        ax.axvline(x=width - 1, color='lime', linewidth=1)
+        ax.axhline(y=height / 2, color='cyan', linewidth=0.8)
+        ax.axvline(x=width / 2, color='cyan', linewidth=0.8)
+
+    fig.suptitle("Initial Deformations from Lottery Initialization", fontsize=12, y=1.1)
+    os.makedirs(config["save_folder"], exist_ok=True)
+    combined_filename = os.path.join(config["save_folder"], "initial_deformations_combined.png")
+    fig.savefig(combined_filename, format='png', bbox_inches='tight')
+    plt.close(fig)
+    print(f"Combined initial deformations saved at: {combined_filename}")
 
     return best_model, best_loss
