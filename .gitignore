@@ -3,9 +3,14 @@ data/raw/*
 data/temp/*
 data/processed/*
 results/*
-data/*
+data/FIRE/*
+data/RFMID/*
+data/IDIR/*
+data/retinos_ex/*
 old_figures/*
 out/
+__pycache__/
+.vscode/
 
 # exceptions to the above rules
 !data/raw/.gitkeep

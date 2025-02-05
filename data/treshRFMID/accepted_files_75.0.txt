@@ -1,0 +1,10 @@
+data/RFMID/Validation_485.npz
+data/RFMID/Training_1066.npz
+data/RFMID/Training_501.npz
+data/RFMID/Training_379.npz
+data/RFMID/Training_265.npz
+data/RFMID/Validation_427.npz
+data/RFMID/Validation_560.npz
+data/RFMID/Testing_376.npz
+data/RFMID/Testing_350.npz
+accepted 9 out of 546 files
