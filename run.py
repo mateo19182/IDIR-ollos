@@ -8,13 +8,13 @@ import numpy as np
 current_directory = os.getcwd()
 results = []
 
-TARGET = "FIRE"  # "FIRE", "RFMID"
+TARGET = "RFMID"  # "FIRE", "RFMID"
 
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
-learning_rates = [0.0001]   
-network_types = ["SIREN"] 
+learning_rates = [0.00001]   
+network_types = ["MLP"] 
 lottery = 5  #1
 
 for lr in learning_rates:
@@ -69,8 +69,12 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in range(9,10):
-                result = general.load_image_RFMID(f"{data_dir}/Testing_{i}.npz")
+            for i in range(0,10):
+                accepted_files_path = os.path.join(current_directory, 'data/treshRFMID/accepted_files_75.0.txt')
+                with open(accepted_files_path, 'r') as f:
+                    file_paths = [line.strip() for line in f if line.startswith('data/RFMID/')]
+                print(f"File path: {file_paths[i]}")
+                result = general.load_image_RFMID(file_paths[i])
                 if result is None:
                     continue
                 else:
