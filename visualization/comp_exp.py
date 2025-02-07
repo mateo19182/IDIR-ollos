@@ -171,21 +171,20 @@ if __name__ == "__main__":
         python compare.py /path/to/exp1 /path/to/exp2 /path/to/exp3 ...
     """
 
-    # dir_1 = "out/new/good/RFMID/MLP-1e-05-2500-150000_r"
-    # dir_2 = "out/new/good/RFMID/SIREN-1e-05-2000-150000_r+reg"
-    # dir_3 = "out/new/good/RFMID/RFMIDu/MLP-1e-05-2000-62500"
-    # dir_4 = "out/new/good/RFMID/RFMIDu/SIREN-1e-05-2000-62500"
-    # not enought common subfolders RFMID
-    dir_1 = "out/real/FIRE/MLP-0.0001-r-1000-65536"
-    dir_2 = "out/real/FIRE/MLP-0.0001-r-1000-131072"
-    dir_3 = "out/real/FIRE/MLP-0.0001-u-1000-65536"
-    dir_4 = "out/real/FIRE/MLP-0.0001-u-1000-131072"
-    dir_5 = "out/real/FIRE/SIREN-1e-05-u-1000-65536"
-    dir_6 = "out/real/FIRE/SIREN-1e-06-r-1000-65536"
-    # dir_7 = "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline" 
 
+    # dir_1 = "out/real/FIRE/MLP-0.0001-r-1000-65536"
+    # dir_2 = "out/real/FIRE/MLP-0.0001-r-1000-131072"
+    # dir_3 = "out/real/FIRE/MLP-0.0001-u-1000-65536"
+    # dir_4 = "out/real/FIRE/MLP-0.0001-u-1000-131072"
+    # dir_5 = "out/real/FIRE/SIREN-1e-05-u-1000-65536"
+    # dir_6 = "out/real/FIRE/SIREN-1e-06-r-1000-65536"
+    # dir_7 = "out/real/FIRE/SIREN-1e-05-500-20000" 
+    dir_1 = "out/real/RFMID/MLP-0.0001-1000-50000-random_450-600"
+    dir_2 = "out/real/RFMID/MLP-0.0001-1000-50000-uniform_450-600"
+    dir_3 = "out/real/RFMID/SIREN-1e-05-1000-50000-random_450-600"
+    dir_4 = "out/real/RFMID/SIREN-0.0001-1000-50000-random_450-600"
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [dir_1, dir_2, dir_3, dir_4, dir_5, dir_6]
+    dirs = [dir_1,dir_2, dir_4, dir_3]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")

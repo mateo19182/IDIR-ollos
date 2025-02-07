@@ -1,0 +1,25 @@
+data/RFMID/Training_203.npz
+data/RFMID/Validation_133.npz
+data/RFMID/Validation_270.npz
+data/RFMID/Testing_378.npz
+data/RFMID/Training_531.npz
+data/RFMID/Training_1869.npz
+data/RFMID/Training_590.npz
+data/RFMID/Training_16.npz
+data/RFMID/Validation_43.npz
+data/RFMID/Training_357.npz
+data/RFMID/Training_777.npz
+data/RFMID/Training_875.npz
+data/RFMID/Testing_591.npz
+data/RFMID/Training_623.npz
+data/RFMID/Validation_561.npz
+data/RFMID/Training_1763.npz
+data/RFMID/Training_1098.npz
+data/RFMID/Testing_339.npz
+data/RFMID/Training_181.npz
+data/RFMID/Testing_171.npz
+data/RFMID/Training_861.npz
+data/RFMID/Training_1055.npz
+data/RFMID/Training_1804.npz
+data/RFMID/Training_1820.npz
+accepted 24 out of 546 files

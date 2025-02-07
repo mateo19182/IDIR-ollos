@@ -382,6 +382,7 @@ def plot_loss_curves(data_loss_list, total_loss_list, epochs, save_path):
     plt.grid(True)
     #plt.show()
     plt.savefig(os.path.join(save_path,'loss.svg'), format='svg')
+    plt.close()
 
 def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
     # Calculate AUC

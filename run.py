@@ -13,34 +13,34 @@ TARGET = "RFMID"  # "FIRE", "RFMID"
 # learning_rates = [0.0001, 0.00001, 0.000001]
 # batch_sizes = [160000, 190000, 220000, 250000, 280000, 310000, 340000, 370000, 400000]
 
-learning_rates = [0.00001]   
+learning_rates = [0.0001]   
 network_types = ["MLP"] 
-lottery = 5  #1
+lottery = 1  #1
 
 for lr in learning_rates:
     for network_type in network_types:
         kwargs = {}
         kwargs["network_type"] = network_type  # Options are "MLP" and "SIREN"
-        kwargs["loss_function"] = "ncc" #mse, l1, ncc, smoothl1, ssim, huber
+        kwargs["loss_function"] =  "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
-        kwargs["batch_size"] = 65536  #max 1.500.000 ... 16 -> 256 -> 65536
+        kwargs["batch_size"] = 50000  #max 1.500.000 ... 16 -> 256 -> 65536
         kwargs["phases"] = 1  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
         kwargs["sampling"] = "random"  # random, weighted, percentage, uniform
         kwargs["epochs"] = 1000  #2500
-        kwargs["patience"] = 500
+        kwargs["patience"] = 250
         kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
         kwargs["hyper_regularization"] = True
         kwargs["alpha_hyper"] = 0.25   #0.25
         kwargs["jacobian_regularization"] = False
         kwargs["alpha_jacobian"] = 0.05  #0.05 default
-        kwargs["bending_regularization"] = True
-        kwargs["alpha_bending"] = 50.0   #10.0
+        kwargs["bending_regularization"] = False
+        kwargs["alpha_bending"] = 75.0   #10.0
                 
         kwargs["save_checkpoints"] = False
 
         data_dir = os.path.join(current_directory, 'data/', TARGET)
-        base_out_dir = os.path.join(current_directory, 'out', 'real', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}")
+        base_out_dir = os.path.join(current_directory, 'out', 'real', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}-{kwargs['sampling']}")
         out_dir = general.create_unique_dir(base_out_dir)
 
         if TARGET == "FIRE":
@@ -69,22 +69,21 @@ for lr in learning_rates:
                 general.clean_memory()
 
         elif TARGET == "RFMID":
-            for i in range(0,10):
-                accepted_files_path = os.path.join(current_directory, 'data/treshRFMID/accepted_files_75.0.txt')
+            for i in range(0,25):
+                accepted_files_path = os.path.join(current_directory, 'data/treshRFMID/accepted_files_450_600.txt')
                 with open(accepted_files_path, 'r') as f:
                     file_paths = [line.strip() for line in f if line.startswith('data/RFMID/')]
-                print(f"File path: {file_paths[i]}")
                 result = general.load_image_RFMID(file_paths[i])
                 if result is None:
                     continue
                 else:
+                    print(f"File path: {file_paths[i]}")
                     (fixed_image, moving_image, clr_img, full_img, fixed_mask, moving_mask, matrix) = result
                 # print("image sizes: ", fixed_image.shape, moving_image.shape)
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running RFMID {i}")
-                num_trials = 5  # You can modify this number to trade off time for a better initialization.
-                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=num_trials)
+                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery)
                 print(f"Selected initialization with total loss: {best_loss:.6f}")
                 best_model.fit()
                 registered_img, dfv = best_model(output_shape=kwargs["image_shape"])
