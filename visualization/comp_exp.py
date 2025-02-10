@@ -179,12 +179,12 @@ if __name__ == "__main__":
     # dir_5 = "out/real/FIRE/SIREN-1e-05-u-1000-65536"
     # dir_6 = "out/real/FIRE/SIREN-1e-06-r-1000-65536"
     # dir_7 = "out/real/FIRE/SIREN-1e-05-500-20000" 
-    dir_1 = "out/real/RFMID/MLP-0.0001-1000-50000-random_450-600"
-    dir_2 = "out/real/RFMID/MLP-0.0001-1000-50000-uniform_450-600"
-    dir_3 = "out/real/RFMID/SIREN-1e-05-1000-50000-random_450-600"
-    dir_4 = "out/real/RFMID/SIREN-0.0001-1000-50000-random_450-600"
+    dir_1 = "out/real/RFMID_450-600/MLP-0.0001-1000-50000-random_450-600"
+    dir_2 = "out/real/RFMID_450-600/MLP-0.0001-1000-50000-uniform_450-600"
+    dir_3 = "out/real/RFMID_450-600/MLP-0.0001-1000-100000-uniform_450-600"
+    dir_4 = "out/real/RFMID_450-600/MLP-0.0001-1000-100000-random-450-600"
     # dir_reg = "out/new/FIRE/MLP-1e-05-2000-150000_A_r"
     # dir_percentage = "out/new/RFMID/SIREN-1e-05-2000-150000_p"
-    dirs = [dir_1,dir_2, dir_4, dir_3]
+    dirs = [dir_1,dir_2, dir_3, dir_4]
     compare_experiments(dirs)
     print("Comparison file saved as 'comp_exp.png'")

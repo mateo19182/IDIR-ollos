@@ -23,16 +23,16 @@ for lr in learning_rates:
         kwargs["network_type"] = network_type  # Options are "MLP" and "SIREN"
         kwargs["loss_function"] =  "ncc" #mse, l1, ncc, smoothl1, ssim, huber
         kwargs["lr"] = lr
-        kwargs["batch_size"] = 50000  #max 1.500.000 ... 16 -> 256 -> 65536
+        kwargs["batch_size"] = 100000  #max 1.500.000 ... 16 -> 256 -> 65536
         kwargs["phases"] = 1  # 1 is normal, 2 does fiest half with sqrt(batch_size), second half with batch_size, etc...
         kwargs["sampling"] = "random"  # random, weighted, percentage, uniform
         kwargs["epochs"] = 1000  #2500
-        kwargs["patience"] = 250
+        kwargs["patience"] = 500
         kwargs["image_shape"] = [1708, 1708]   #RFMID something isnt right on res other than 1708, 1708
 
         kwargs["hyper_regularization"] = True
         kwargs["alpha_hyper"] = 0.25   #0.25
-        kwargs["jacobian_regularization"] = False
+        kwargs["jacobian_regularization"] = True
         kwargs["alpha_jacobian"] = 0.05  #0.05 default
         kwargs["bending_regularization"] = False
         kwargs["alpha_bending"] = 75.0   #10.0
@@ -60,7 +60,7 @@ for lr in learning_rates:
                 kwargs["save_folder"]= os.path.join(out_dir, str(i+1) + cat + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running FIRE {i}")
-                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery)
+                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery, plot=False)
                 print(f"Selected initialization with total loss: {best_loss:.6f}")
                 best_model.fit()
                 registered_img, dfv = best_model(output_shape=kwargs["image_shape"])
@@ -83,7 +83,7 @@ for lr in learning_rates:
                 kwargs["save_folder"]= os.path.join(out_dir, str(i) + '/')
                 kwargs["mask"] = fixed_mask
                 print(f"Running RFMID {i}")
-                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery)
+                best_model, best_loss = general.select_best_initialization(moving_image, fixed_image, kwargs, num_trials=lottery, plot=False)
                 print(f"Selected initialization with total loss: {best_loss:.6f}")
                 best_model.fit()
                 registered_img, dfv = best_model(output_shape=kwargs["image_shape"])

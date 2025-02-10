@@ -730,7 +730,7 @@ def evaluate_initial_loss(model, sample_size=None):
     return loss_val.item()
 
 
-def select_best_initialization(moving_image, fixed_image, config, num_trials=5, sample_size=None):
+def select_best_initialization(moving_image, fixed_image, config, num_trials=5, sample_size=None, plot=True):
     """
     Try multiple network initializations (taking the regularization losses into account)
     and select the one with the lowest initial total loss.
@@ -746,6 +746,7 @@ def select_best_initialization(moving_image, fixed_image, config, num_trials=5, 
       config (dict): Configuration dictionary. Assumes 'image_shape' and 'save_folder' are included.
       num_trials (int): Number of candidate initialization trials.
       sample_size (int, optional): Number of points for loss evaluation.
+      plot (bool): Whether to generate and save visualization plots. Default True.
     
     Returns:
       best_model: The model instance with the lowest evaluated loss.
@@ -790,81 +791,83 @@ def select_best_initialization(moving_image, fixed_image, config, num_trials=5, 
         trial_losses.append(loss_value)
         trial_seeds.append(config_copy["seed"])
 
-        # --- Begin Deformation Visualization Code for each trial ---
-        try:
-            # Get the model's current (initial) registration output.
-            registered_img, dfv = model(output_shape=vol_shape)
-            # Create a grid image using the bw_grid function.
-            grid = torch.from_numpy(bw_grid(vol_shape, spacing=64, thickness=3))
-            # Ensure dfv is a numpy array.
-            if isinstance(dfv, torch.Tensor):
-                dfv_np = dfv.detach().cpu().numpy()
-            else:
-                dfv_np = dfv
-            # Compute the deformed grid using bilinear interpolation.
-            transformed_grid = bilinear_interpolation(
-                grid,
-                torch.from_numpy(dfv_np[:, 0]),
-                torch.from_numpy(dfv_np[:, 1])
-            )
-            # Reshape to the original volume shape.
-            transformed_grid = transformed_grid.reshape(vol_shape)
-            deformation_images.append(transformed_grid)
-        except Exception as e:
-            print("Error computing deformation for trial", trial + 1, ":", e)
-            # Append a placeholder (e.g., reference grid) if error occurs.
-            deformation_images.append(ref_grid)
-        # --- End Deformation Visualization Code ---
+        if plot:
+            # --- Begin Deformation Visualization Code for each trial ---
+            try:
+                # Get the model's current (initial) registration output.
+                registered_img, dfv = model(output_shape=vol_shape)
+                # Create a grid image using the bw_grid function.
+                grid = torch.from_numpy(bw_grid(vol_shape, spacing=64, thickness=3))
+                # Ensure dfv is a numpy array.
+                if isinstance(dfv, torch.Tensor):
+                    dfv_np = dfv.detach().cpu().numpy()
+                else:
+                    dfv_np = dfv
+                # Compute the deformed grid using bilinear interpolation.
+                transformed_grid = bilinear_interpolation(
+                    grid,
+                    torch.from_numpy(dfv_np[:, 0]),
+                    torch.from_numpy(dfv_np[:, 1])
+                )
+                # Reshape to the original volume shape.
+                transformed_grid = transformed_grid.reshape(vol_shape)
+                deformation_images.append(transformed_grid)
+            except Exception as e:
+                print("Error computing deformation for trial", trial + 1, ":", e)
+                # Append a placeholder (e.g., reference grid) if error occurs.
+                deformation_images.append(ref_grid)
+            # --- End Deformation Visualization Code ---
 
         if loss_value < best_loss:
             best_loss = loss_value
             best_model = model
 
-    # --- Combine all trial deformations into a single figure ---
-    # Create one extra subplot for the reference grid.
-    num_columns = num_trials + 1  
-    fig, axes = plt.subplots(1, num_columns, figsize=(3 * num_columns, 3))
-    
-    # Plot the reference grid in the first subplot.
-    axes[0].imshow(ref_grid, cmap='gray')
-    axes[0].set_title("Reference Grid", fontsize=9)
-    axes[0].axis("off")
-    
-    # Retrieve image dimensions for reference lines
-    height, width = vol_shape
-
-    # Identify the best trial index.
-    best_trial_index = trial_losses.index(best_loss) if trial_losses else None
-
-    # Plot each candidate's deformation.
-    for idx in range(num_trials):
-        ax = axes[idx + 1]
-        ax.imshow(deformation_images[idx], cmap='gray')
-        title = f"Trial {idx + 1}\nLoss: {trial_losses[idx]:.4f}\nSeed: {trial_seeds[idx]}"
-        if best_trial_index is not None and idx == best_trial_index:
-            title += "\n(Best)"
-            # Highlight best candidate border
-            for spine in ax.spines.values():
-                spine.set_edgecolor('red')
-                spine.set_linewidth(2)
-        ax.set_title(title, fontsize=8)
-        ax.axis("off")
+    if plot:
+        # --- Combine all trial deformations into a single figure ---
+        # Create one extra subplot for the reference grid.
+        num_columns = num_trials + 1  
+        fig, axes = plt.subplots(1, num_columns, figsize=(3 * num_columns, 3))
         
-        ax.set_xlim(0, width)
-        ax.set_ylim(height, 0) 
+        # Plot the reference grid in the first subplot.
+        axes[0].imshow(ref_grid, cmap='gray')
+        axes[0].set_title("Reference Grid", fontsize=9)
+        axes[0].axis("off")
         
-        ax.axhline(y=0, color='lime', linewidth=1)
-        ax.axhline(y=height - 1, color='lime', linewidth=1)
-        ax.axvline(x=0, color='lime', linewidth=1)
-        ax.axvline(x=width - 1, color='lime', linewidth=1)
-        ax.axhline(y=height / 2, color='cyan', linewidth=0.8)
-        ax.axvline(x=width / 2, color='cyan', linewidth=0.8)
+        # Retrieve image dimensions for reference lines
+        height, width = vol_shape
 
-    fig.suptitle("Initial Deformations from Lottery Initialization", fontsize=12, y=1.1)
-    os.makedirs(config["save_folder"], exist_ok=True)
-    combined_filename = os.path.join(config["save_folder"], "initial_deformations_combined.png")
-    fig.savefig(combined_filename, format='png', bbox_inches='tight')
-    plt.close(fig)
-    print(f"Combined initial deformations saved at: {combined_filename}")
+        # Identify the best trial index.
+        best_trial_index = trial_losses.index(best_loss) if trial_losses else None
+
+        # Plot each candidate's deformation.
+        for idx in range(num_trials):
+            ax = axes[idx + 1]
+            ax.imshow(deformation_images[idx], cmap='gray')
+            title = f"Trial {idx + 1}\nLoss: {trial_losses[idx]:.4f}\nSeed: {trial_seeds[idx]}"
+            if best_trial_index is not None and idx == best_trial_index:
+                title += "\n(Best)"
+                # Highlight best candidate border
+                for spine in ax.spines.values():
+                    spine.set_edgecolor('red')
+                    spine.set_linewidth(2)
+            ax.set_title(title, fontsize=8)
+            ax.axis("off")
+            
+            ax.set_xlim(0, width)
+            ax.set_ylim(height, 0) 
+            
+            ax.axhline(y=0, color='lime', linewidth=1)
+            ax.axhline(y=height - 1, color='lime', linewidth=1)
+            ax.axvline(x=0, color='lime', linewidth=1)
+            ax.axvline(x=width - 1, color='lime', linewidth=1)
+            ax.axhline(y=height / 2, color='cyan', linewidth=0.8)
+            ax.axvline(x=width / 2, color='cyan', linewidth=0.8)
+
+        fig.suptitle("Initial Deformations from Lottery Initialization", fontsize=12, y=1.1)
+        os.makedirs(config["save_folder"], exist_ok=True)
+        combined_filename = os.path.join(config["save_folder"], "initial_deformations_combined.png")
+        fig.savefig(combined_filename, format='png', bbox_inches='tight')
+        plt.close(fig)
+        print(f"Combined initial deformations saved at: {combined_filename}")
 
     return best_model, best_loss
