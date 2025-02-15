@@ -342,11 +342,12 @@ class ImplicitRegistrator2d:
         loss = 0
         
         #batch size schedule
-        current_phase = self.phases - max(int(epoch / self.phase_length), 0)
-        if current_phase != self.prev_phase:
-            self.batch_size = int(self.og_batch_size ** (1/(2**(current_phase-1))))
-            self.prev_phase = current_phase
-            print(f"Current epoch: {epoch} phase: {current_phase}, batch size: {self.batch_size}")
+        if self.phases != 1:
+            current_phase = self.phases - max(int(epoch / self.phase_length), 0)
+            if current_phase != self.prev_phase:
+                self.batch_size = int(self.og_batch_size ** (1/(2**(current_phase-1))))
+                self.prev_phase = current_phase
+                print(f"Current epoch: {epoch} phase: {current_phase}, batch size: {self.batch_size}")
 
 
         #sampling strategy

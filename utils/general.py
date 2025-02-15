@@ -404,11 +404,12 @@ def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
         f.write(f"Area Under the Curve (AUC): {auc:.4f}\n")
         if threshold_90 is not None:
             f.write(f"Threshold for 90% success rate: {threshold_90:.4f}\n")
+            success = True
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
+            success = False
         if mean_dist < (og_mean_dist*1.1):
             f.write("improved\n")
-            success = True
         else:
             f.write("did not improve\n")
             success = False
@@ -487,11 +488,11 @@ def test_FIRE(dfv, ground_truth, vol_shape, save_path, reg_img, fixed_image, mov
         dists.append(dist)
         og_dists.append(og_dist)
 
-    with open(os.path.join(save_path,'dists.txt'), 'w') as f:
-        for i, o in zip(dists, og_dists):
-            f.write("og:%s | now:%s\n" % (o, i))
-        f.write("ogMean: %s\n" % np.mean(og_dists))
-        f.write("nowMean: %s\n" % np.mean(dists))
+    # with open(os.path.join(save_path,'dists.txt'), 'w') as f:
+    #     for i, o in zip(dists, og_dists):
+    #         f.write("og:%s | now:%s\n" % (o, i))
+    #     f.write("ogMean: %s\n" % np.mean(og_dists))
+    #     f.write("nowMean: %s\n" % np.mean(dists))
         
         
     for threshold in thresholds:
@@ -612,6 +613,7 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     fig_path = os.path.join(save_path, 'plot.png')
     plt.savefig(fig_path, format='png')
     print("Plot saved at: ", fig_path)
+    plt.close()
     # plt.figure()
     # plt.plot(thresholds, success_rates)
     # plt.xlabel('Threshold')
