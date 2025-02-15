@@ -87,7 +87,7 @@ ax.legend(loc='lower left')
 
 # Adjust layout and save/show plot
 plt.tight_layout(rect=[0, 0, 1, 0.95])
-plt.savefig("experiment_plot.png")
+plt.savefig("experiment_plot_RFMID.png")
 plt.show()
 
-print("Done! Plot saved as experiment_plot.png")
+print("Done! Plot saved as experiment_plot_RFMID.png")
