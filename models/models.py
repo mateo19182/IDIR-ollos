@@ -378,7 +378,7 @@ class ImplicitRegistrator2d:
         elif self.sampling == "uniform":  # not optimized
             self.possible_coordinate_tensor = general.make_uniform_coordinate_tensor(self.mask, self.fixed_image.shape, self.batch_size)
             indices = torch.arange(self.possible_coordinate_tensor.shape[0], device='cuda')
-        if epoch == 0 and True:
+        if epoch == 0 and False:
             fig_vis.visualize_sampling(indices, self.possible_coordinate_tensor)
 
         coordinate_tensor = self.possible_coordinate_tensor[indices, :]
