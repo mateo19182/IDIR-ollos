@@ -1,5 +1,7 @@
 # Aliñamento de imaxes oftalmolóxicas usando representacións neuronais implícitas
 
+Based on the work of [IDIR](https://github.com/MIAGroupUT/IDIR). Adapted for retinographies.
+
 ## Training
 
 ```python
