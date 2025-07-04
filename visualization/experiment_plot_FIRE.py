@@ -7,59 +7,88 @@ import matplotlib.pyplot as plt
 logging.basicConfig(level=logging.INFO)
 
 # Set the experiments directory for FIRE
-experiments_dir = os.path.join("out", "zzz", "FIRE")
+experiments_dir = os.path.join("out", "phases", "FIRE")
 experiment_results = {}
 
 def parse_experiment_name(exp_name):
     """
     Parse the experiment folder name.
-    Expected formats:
-      With sampling: "MLP-0.0001-u-1000-131072"
-      Without sampling: "SIREN-1e-05-500-20000"
-    Note: scientific notation like "1e-05" may be split by '-' so we join if necessary.
-    Returns a dict with the following keys:
-      network_type, lr, sampling (may be None), epochs, batch_size.
+    Expected format: "MLP-0.0001-1500-25000-f2"
     """
-    parts = exp_name.split('-')
+    # Skip unfinished experiments
+    if exp_name.endswith("_unfinished"):
+        return None
+
+    # Handle baseline case
+    if exp_name == "S_baseline":
+        return {
+            "network_type": "baseline",
+            "lr": 0.0,
+            "epochs": 0,
+            "batch_size": 0,
+            "phase": "f1"
+        }
+
+    # Remove any suffixes starting with '_'
+    main_parts = exp_name.split('_')[0].split('-')
     cfg = {}
-    cfg["network_type"] = parts[0]
-    # Handle potential splitting of lr in scientific notation
-    if parts[1].endswith("e"):
-        lr_str = parts[1] + "-" + parts[2]
-        index = 3
-    else:
-        lr_str = parts[1]
-        index = 2
+    cfg["network_type"] = main_parts[0]
     try:
-        cfg["lr"] = float(lr_str)
+        cfg["lr"] = float(main_parts[1])
     except ValueError:
         cfg["lr"] = 0.0
-
-    remaining = parts[index:]
-    if len(remaining) == 3:
-        # With sampling: sampling, epochs, batch_size
-        cfg["sampling"] = remaining[0]
-        cfg["epochs"] = int(remaining[1])
-        cfg["batch_size"] = int(remaining[2])
-    elif len(remaining) == 2:
-        # Without sampling: epochs, batch_size
-        cfg["sampling"] = None
-        cfg["epochs"] = int(remaining[0])
-        cfg["batch_size"] = int(remaining[1])
-    else:
-        cfg["sampling"] = None
+    try:
+        cfg["epochs"] = int(main_parts[2])
+    except (ValueError, IndexError):
         cfg["epochs"] = 0
+    try:
+        cfg["batch_size"] = int(main_parts[3])
+    except (ValueError, IndexError):
         cfg["batch_size"] = 0
-
+    # Phase (e.g., f1, f2, f3)
+    cfg["phase"] = main_parts[4] if len(main_parts) > 4 else "f1"
     return cfg
+
+
+
+def generate_latex_table(sorted_experiments, experiment_results):
+    """
+    Generate a LaTeX table summarizing the experiments.
+    """
+    header = (
+        "\\begin{tabular}{lcccc}\n"
+        "\\toprule\n"
+        "Network & Learning Rate & Epochs & Batch Size & Success Rate (\\%) \\\\\n"
+        "\\midrule\n"
+    )
+    rows = []
+    for exp in sorted_experiments:
+        cfg = parse_experiment_name(exp)
+        if cfg is None:
+            continue
+        net = cfg["network_type"]
+        lr = cfg["lr"]
+        ep = cfg["epochs"]
+        bs = cfg["batch_size"]
+        phase = cfg["phase"]
+        percent = experiment_results[exp]
+        rows.append(f"{net} ({phase}) & {lr} & {ep} & {bs} & {percent:.2f} \\\\")
+    footer = "\\bottomrule\n\\end{tabular}"
+    return header + "\n".join(rows) + "\n" + footer
+
 
 def sort_key(exp_name):
     cfg = parse_experiment_name(exp_name)
-    # Use tuple ordering: network_type, lr, sampling (None sorts before any string), epochs, batch_size
-    return (cfg["network_type"], cfg["lr"], cfg["sampling"] if cfg["sampling"] is not None else '', cfg["epochs"], cfg["batch_size"])
+    # Use tuple ordering: network_type, lr, epochs, batch_size, phase
+    phase_num = int(cfg["phase"][1:]) if cfg["phase"].startswith("f") and cfg["phase"][1:].isdigit() else 0
+    return (cfg["network_type"], cfg["lr"], cfg["epochs"], cfg["batch_size"], phase_num)
 
 # Iterate over each experiment folder
 for exp_name in os.listdir(experiments_dir):
+    if exp_name.endswith("_unfinished"):
+        logging.info(f"Skipping unfinished experiment: {exp_name}")
+        continue
+        
     exp_path = os.path.join(experiments_dir, exp_name)
     if not os.path.isdir(exp_path):
         continue
@@ -99,18 +128,19 @@ sorted_percentages = [experiment_results[exp] for exp in sorted_experiments]
 
 # Color mapping by network type and sampling
 colors_map = {
-    ("MLP", "r"): "lightblue",
-    ("MLP", "u"): "darkblue",
-    ("SIREN", "r"): "sandybrown",
-    ("SIREN", "u"): "darkorange"
+    ("MLP", "f1"): "lightblue",
+    ("MLP", "f2"): "dodgerblue",
+    ("MLP", "f3"): "navy",
+    ("SIREN", "f1"): "sandybrown",
+    ("SIREN", "f2"): "darkorange",
+    ("SIREN", "f3"): "chocolate"
 }
 
 bar_colors = []
 for exp in sorted_experiments:
     cfg = parse_experiment_name(exp)
-    # Default to 'r' if no sampling specified
-    sampling = cfg["sampling"] if cfg["sampling"] else "r"
-    color = colors_map.get((cfg["network_type"], sampling), "gray")
+    phase = cfg["phase"] if "phase" in cfg else "f1"
+    color = colors_map.get((cfg["network_type"], phase), "gray")
     bar_colors.append(color)
 
 # Create bar plot for experiments
@@ -124,12 +154,11 @@ ax.set_ylabel("Success Rate (%)")
 ax.set_title("FIRE Experiments Success Rates by Network Type and Sampling Strategy")
 
 # Annotate bars with configuration parameters inside the columns
+
 for i, (exp, height) in enumerate(zip(sorted_experiments, sorted_percentages)):
     cfg = parse_experiment_name(exp)
-    # Default to 'r' if no sampling specified
-    sampling = cfg["sampling"] if cfg["sampling"] else "r"
-    label = f"lr: {cfg['lr']}\nep: {cfg['epochs']}\nbs: {cfg['batch_size']}\nsamp: {sampling}"
-    
+    phase = cfg["phase"] if "phase" in cfg else "f1"
+    label = f"lr: {cfg['lr']}\nep: {cfg['epochs']}\nbs: {cfg['batch_size']}\nphase: {phase}"
     # Position text inside the bar if height is sufficient, otherwise above
     if height > 15:  # threshold for putting text inside bar
         y_pos = height/2  # middle of bar
@@ -144,15 +173,21 @@ for i, (exp, height) in enumerate(zip(sorted_experiments, sorted_percentages)):
 # Create custom legend for network types and sampling strategies
 from matplotlib.patches import Patch
 legend_elements = [
-    Patch(facecolor=colors_map[("MLP", "r")], label='MLP (random)'),
-    Patch(facecolor=colors_map[("MLP", "u")], label='MLP (uniform)'),
-    Patch(facecolor=colors_map[("SIREN", "r")], label='SIREN (random)'),
-    Patch(facecolor=colors_map[("SIREN", "u")], label='SIREN (uniform)')
+    Patch(facecolor=colors_map[("MLP", "f1")], label='MLP (f1)'),
+    Patch(facecolor=colors_map[("MLP", "f2")], label='MLP (f2)'),
+    Patch(facecolor=colors_map[("MLP", "f3")], label='MLP (f3)'),
+    Patch(facecolor=colors_map[("SIREN", "f1")], label='SIREN (f1)'),
+    Patch(facecolor=colors_map[("SIREN", "f2")], label='SIREN (f2)'),
+    Patch(facecolor=colors_map[("SIREN", "f3")], label='SIREN (f3)')
 ]
-ax.legend(handles=legend_elements, title="Network Type and Sampling", loc="upper right")
+ax.legend(handles=legend_elements, title="Network Type and Phase", loc="upper right")
 
 plt.tight_layout()
 plt.savefig("experiment_plot_FIRE.png")
 plt.show()
+
+latex_table = generate_latex_table(sorted_experiments, experiment_results)
+print("\nLaTeX Table:\n")
+print(latex_table)
 
 print("Done! Plot saved as experiment_plot_FIRE.png")

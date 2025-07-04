@@ -11,6 +11,7 @@ old_figures/*
 out/
 __pycache__/
 .vscode/
+env/
 
 # exceptions to the above rules
 !data/raw/.gitkeep

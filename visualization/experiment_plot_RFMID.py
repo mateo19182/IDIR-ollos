@@ -20,6 +20,12 @@ parser.add_argument(
     default=[],
     help="Only process experiments whose directory name contains ALL of these substrings"
 )
+parser.add_argument(
+    "-n",
+    type=int,
+    help="Show only the top N runs based on AUC",
+    default=None
+)
 args = parser.parse_args()
 filters = args.filters
 
@@ -35,6 +41,15 @@ def ensure_all_difficulty_ranges(sorted_stats):
     stats_dict = dict(sorted_stats)
     complete_stats = [(r, stats_dict.get(r, 0.0)) for r in expected_ranges]
     return complete_stats
+
+# Add this after the ensure_all_difficulty_ranges function
+def calculate_auc(percentages):
+    """Calculate the area under the curve using trapezoidal rule."""
+    # Normalize x-axis to [0,1]
+    x = np.linspace(0, 1, len(percentages))
+    # Normalize y-axis to [0,1]
+    y = np.array(percentages) / 100.0
+    return np.trapz(y, x)
 
 def parse_model_name(model_name):
     # dir created like: base_out_dir = os.path.join(current_directory, 'out', 'zzz', TARGET, f"{kwargs['network_type']}-{kwargs['lr']}-{kwargs['epochs']}-{kwargs['batch_size']}-{kwargs['sampling']}", dif)
@@ -131,10 +146,45 @@ for model_name in os.listdir(experiments_dir):
                         f"  Sampling: {model_info['sampling']}\n"
                         f"\nSuccess Rates by Difficulty Range:")
             
-            for difficulty, percent in sorted_stats:
-                lower, upper = map(int, difficulty.split('_'))
-                logging.info(f"  {lower:3d}-{upper:<3d}: {percent:6.2f}%")
+            # Make the difficulty range parsing more robust
+            try:
+                for difficulty, percent in sorted_stats:
+                    try:
+                        parts = difficulty.split('_')
+                        if len(parts) != 2:
+                            logging.warning(f"Skipping invalid difficulty format: {difficulty}")
+                            continue
+                        lower, upper = map(int, parts)
+                        logging.info(f"  {lower:3d}-{upper:<3d}: {percent:6.2f}%")
+                    except ValueError:
+                        logging.warning(f"Could not parse difficulty range: {difficulty}")
+                        continue
+            except Exception as e:
+                logging.error(f"Error processing stats: {e}")
             logging.info("-" * 50)
+
+# Add this before the plotting section (before plt.style.use('ggplot'))
+
+# If -n is specified, filter for top N runs based on AUC
+if args.n is not None:
+    # Calculate AUC for each model
+    model_aucs = {}
+    for model_name, data in model_configs.items():
+        auc = calculate_auc(data["percentages"])
+        model_aucs[model_name] = auc
+        logging.info(f"AUC for {model_name}: {auc:.4f}")
+    
+    # Sort models by AUC and keep only top N
+    sorted_models = sorted(model_aucs.items(), key=lambda x: x[1], reverse=True)
+    top_n_models = sorted_models[:args.n]
+    
+    # Filter model_configs to keep only top N
+    model_configs = {model: model_configs[model] for model, _ in top_n_models}
+    
+    logging.info(f"\nKeeping top {args.n} models based on AUC:")
+    for model, auc in top_n_models:
+        logging.info(f"  {model}: {auc:.4f}")
+    logging.info("-" * 50)
 
 # Add this before the plotting loop
 
@@ -145,9 +195,18 @@ for model_name, data in model_configs.items():
         logging.info(f"  {label}: {percentage:.2f}%")
 logging.info("-" * 50)
 
+# Calculate AUCs for all models (add this before the plotting loop)
+model_aucs = {
+    model_name: calculate_auc(data["percentages"])
+    for model_name, data in model_configs.items()
+}
+
 # Use a modern style for plotting
 plt.style.use('ggplot')
 fig, ax = plt.subplots(figsize=(16, 8))
+
+# Set y-axis limits to 0-100
+ax.set_ylim(0, 100)
 
 # Define markers mapping for different batch sizes
 markers = {
@@ -164,7 +223,7 @@ line_styles = {
     "0.0001": "-."
 }
 
-# Plot each experiment configuration with marker and line style differentiators
+# Modify the plotting loop to include AUC in labels
 for model_name, data in model_configs.items():
     parsed = parse_model_name(model_name)
     if not parsed:
@@ -178,6 +237,9 @@ for model_name, data in model_configs.items():
     learning_rate = parsed['learning_rate']
     ls = line_styles.get(learning_rate, '-')  # fallback line style
 
+    # Add AUC to the label
+    label = f"{model_name} (AUC: {model_aucs[model_name]:.3f})"
+
     x = np.arange(len(data["labels"]))
     ax.plot(
         x,
@@ -186,7 +248,7 @@ for model_name, data in model_configs.items():
         markersize=10,
         linestyle=ls,
         linewidth=2,
-        label=model_name
+        label=label
     )
 
 # Set axis labels and title

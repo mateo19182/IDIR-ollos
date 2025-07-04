@@ -1,5 +1,6 @@
 import os
 import re
+import argparse
 import matplotlib.pyplot as plt
 
 def extract_threshold(file_path):
@@ -41,53 +42,71 @@ def plot_fire_registration_scores(thresholds_list, labels, output_file):
 
         plt.plot(x_values, y_values, linestyle='-', label=label)
     
-    plt.xlabel('Error Threshold')
-    plt.ylabel('Percentage of Successfully Registered Image Pairs')
-    plt.title('FIRE Registration Score Category S')
+    plt.xlabel('Limiar de Erro')
+    plt.ylabel('Porcentaxe de Pares de Imaxes Rexistrados con Éxito')
+    plt.title('Puntuación de Rexistro FIRE con ReLU')
     plt.grid(True)
     plt.ylim(0, 100)
     plt.xlim(0, 25)  # Ensure the x-axis starts at 0 and ends at 25
     plt.xticks(range(0, 26, 5))  # Adjust x-axis ticks to show every 5 units, including 25
-    plt.legend()
+    plt.legend(title="Batch Size")
     plt.savefig(output_file)
     plt.close() 
     print(f"Plot saved as {output_file}")
 
+def extract_batch_size(dir_name):
+    # Find all numbers in the directory name and return the last one as int
+    matches = re.findall(r'\d+', dir_name)
+    return int(matches[-1]) if matches else float('inf')
+
 if __name__ == "__main__":
-    # Option 1: Specify multiple directories
-    base_paths = [
-        "out/new/good/FIRE/S/MLP-1e-05-2000-150000_S_r_baseline",
-        "out/new/good/FIRE/S/SIREN-1e-05-1500-100000_S_++reg",
-        "out/zzz/FIRE_S/S_baseline", 
-        "out/zzz/FIRE_S/MLP-0.0001-u-1000-131072", 
-        "out/zzz/FIRE_S/MLP-0.0001-r-1000-131072"
+    parser = argparse.ArgumentParser(description="Plot FIRE registration scores.")
+    parser.add_argument(
+        "--base_dir", type=str, required=True,
+        help="Base directory containing subdirectories with metrics.txt files."
+    )
+    parser.add_argument(
+        "--dir_regex", type=str, default=".*",
+        help="Regex to filter subdirectories in base_dir."
+    )
+    parser.add_argument(
+        "--labels", type=str, nargs="*", default=None,
+        help="Custom legend labels (space-separated, must match number of selected dirs)."
+    )
+    parser.add_argument(
+        "--output_file", type=str, default="fire_registration_scores_combined.png",
+        help="Output filename for the plot."
+    )
+    args = parser.parse_args()
+
+    # Filter subdirectories using regex
+    dir_names = [
+        d for d in os.listdir(args.base_dir)
+        if os.path.isdir(os.path.join(args.base_dir, d)) and re.match(args.dir_regex, d)
     ]
-    # Option 2: Specify a single directory containing all subdirectories
-    single_base_path = "out/zzz/FIRE_S/"
+
+    # Sort by batch size (last number in dir name)
+    dir_names = sorted(dir_names, key=extract_batch_size)
 
     thresholds_list = []
     labels = []
-    
-    # Uncomment the following block to use multiple directories
-    # for i, base_path in enumerate(base_paths):
-    #     thresholds, total_instances = collect_thresholds(base_path)
-    #     if thresholds:
-    #         thresholds_list.append(thresholds)
-    #         labels.append(f'Plot {i+1}')
-    #     else:
-    #         print(f"No valid thresholds found in {base_path}.")
-    
-    # Uncomment the following block to use a single directory containing all subdirectories
-    for dir_name in os.listdir(single_base_path):
-        dir_path = os.path.join(single_base_path, dir_name)
-        if os.path.isdir(dir_path):
-            thresholds, total_instances = collect_thresholds(dir_path)
-            if thresholds:
-                thresholds_list.append(thresholds)
-                labels.append(f'{dir_name}')
-            else:
-                print(f"No valid thresholds found in {dir_path}.")
-    
+
+    for dir_name in dir_names:
+        dir_path = os.path.join(args.base_dir, dir_name)
+        thresholds, total_instances = collect_thresholds(dir_path)
+        if thresholds:
+            thresholds_list.append(thresholds)
+            labels.append(dir_name)
+        else:
+            print(f"No valid thresholds found in {dir_path}.")
+
+    # Use custom labels if provided and count matches
+    if args.labels:
+        if len(args.labels) != len(labels):
+            raise ValueError("Number of custom labels must match number of selected directories.")
+        labels = args.labels
+
     if thresholds_list:
-        output_file = 'fire_registration_scores_combined.png'
-        plot_fire_registration_scores(thresholds_list, labels, output_file)
+        plot_fire_registration_scores(thresholds_list, labels, args.output_file)
+    else:
+        print("No valid thresholds found for any directory.")

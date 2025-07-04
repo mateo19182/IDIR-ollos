@@ -408,7 +408,7 @@ def calculate_metrics(thresholds, success_rates, dists, og_dists, save_path):
         else:
             f.write("Threshold for 90% success rate: Not achieved\n")
             success = False
-        if mean_dist < (og_mean_dist*1.1):
+        if mean_dist < (og_mean_dist):
             f.write("improved\n")
         else:
             f.write("did not improve\n")
@@ -622,22 +622,53 @@ def test_RFMID(dfv, matrix, vol_shape, save_path, reg_img, fixed_image, moving_i
     # plt.ylim([0, 1]) 
     # fig_path = os.path.join(save_path, 'eval.png')
     # plt.savefig(fig_path, format='png')
+
+    fig, ax = plt.subplots(1, 3, figsize=(20, 10))
+
+    # Create and display checkerboard image
+    checker_img = fig_vis.create_checkerboard(fixed_image, img)
+    ax[0].imshow(checker_img, cmap='gray')
+    ax[0].set_title('Composición Checkerboard')
+
+    color_mixed = fig_vis.color_overlay(fixed_image, img)
+    ax[1].imshow(color_mixed)
+    ax[1].set_title('Composición de Color')
     
+    # Visualize the vector field and insert it as the third subplot
+    # vector_vis_fig, vector_vis_ax = fig_vis.visualize_vector_field(dfv)
+    
+    # ax[2].imshow(vector_vis_fig.canvas.buffer_rgba())
+    # ax[2].set_title('Visualización dos Vectores de Desprazamento')
+    H, W, _ = dfv.shape
+    stride = 25
+    x_coords, y_coords = np.meshgrid(np.arange(W), np.arange(H))
+    x_down = x_coords[::stride, ::stride]
+    y_down = y_coords[::stride, ::stride]
+    u = dfv[::stride, ::stride, 1]  # dx
+    v = dfv[::stride, ::stride, 0]  # dy
+    magnitudes = np.sqrt(u**2 + v**2) 
 
-    # fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+    quiv = ax[2].quiver(
+        x_down, y_down, 
+        u, v, 
+        magnitudes,
+        angles='xy', 
+        scale_units='xy', 
+        scale=0.05,
+        cmap='jet', 
+        alpha=0.9,
+        width=0.005 
+    )
+    plt.colorbar(quiv, ax=ax[2], fraction=0.046, pad=0.04)
+    ax[2].set_title('Visualización dos Vectores de Desprazamento')
+    ax[2].set_aspect('equal')
+    ax[2].invert_yaxis()
 
-    # # Create and display checkerboard image
-    # checker_img = fig_vis.create_checkerboard(fixed_image, img)
-    # ax[0].imshow(checker_img, cmap='gray')
-    # ax[0].set_title('Checkerboard: Fixed vs. Registered')
-
-    # color_mixed = fig_vis.color_overlay(fixed_image, img)
-    # ax[1].imshow(color_mixed)
-    # ax[1].set_title('Color Overlay: Red=Fixed, Green=Registered (Yellow=Match)')
-    # # Save the figure
-    # fig.tight_layout()
-    # fig_path = os.path.join(save_path, 'combined_visualization.png')
-    # plt.savefig(fig_path, format='png')
+    # Save the figure
+    fig.tight_layout()
+    fig_path = os.path.join(save_path, 'combined_visualization.png')
+    
+    plt.savefig(fig_path, format='png')
 
     return calculate_metrics(thresholds, success_rates, dists, og_dists, save_path)
 

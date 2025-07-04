@@ -2,7 +2,7 @@ import numpy as np
 import torch.nn as nn
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
-# from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 import matplotlib.pyplot as plt
 
 class SSIM_(_Loss):
@@ -18,6 +18,21 @@ class SSIM_(_Loss):
         # fixed = fixed.reshape(1, 1, size, size)
         # warped = warped.reshape(1, 1, size, size)
         #sim_val = ms_ssim(fixed, warped, data_range=1, size_average=True)
+        fixed = fixed.reshape(1, 1, 100, 100)
+        warped = warped.reshape(1, 1, 100, 100)
+        
+        # if not hasattr(self, 'saved_once'):
+        #     fig, axs = plt.subplots(1, 2)
+
+        #     axs[0].imshow(fixed.detach().cpu()[0, 0, :, :], cmap='gray')
+        #     axs[0].set_title('Fixed Image')
+
+        #     axs[1].imshow(warped.detach().cpu()[0, 0, :, :], cmap='gray')
+        #     axs[1].set_title('Warped Image')
+
+        #     plt.savefig('ssim_images.png')
+        #     self.saved_once = True
+        
         ssim_val = ssim(fixed, warped, data_range=1, size_average=True)
 
         # plt.figure()
